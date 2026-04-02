@@ -28,7 +28,6 @@ class Api::V1::Oauth::ApplicationsController < Api::BaseController
         # Criar nova aplicação dinâmica
         application = DynamicOauthService.create_or_find_application_for_account(
           client_id,
-          nil,
           current_user,
           redirect_uri
         )

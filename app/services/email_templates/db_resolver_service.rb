@@ -9,7 +9,7 @@
 # so we are overriding find_all method in action view resolver
 # If anything breaks - look into rails : actionview/lib/action_view/template/resolver.rb
 
-class ::EmailTemplates::DBResolverService < ActionView::Resolver
+class ::EmailTemplates::DbResolverService < ActionView::Resolver
   require 'singleton'
   include Singleton
 

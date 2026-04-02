@@ -170,7 +170,7 @@ class MessageTemplate < ApplicationRecord
   end
 
   def self.resolver(options = {})
-    ::EmailTemplates::DBResolverService.using self, options
+    ::EmailTemplates::DbResolverService.using self, options
   end
 
   private

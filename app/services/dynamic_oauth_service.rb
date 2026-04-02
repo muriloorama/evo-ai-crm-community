@@ -43,7 +43,7 @@ class DynamicOauthService
     application
   end
 
-  def self.create_or_find_application_for_account(client_id, _deprecated = nil, current_user, redirect_uri = nil)
+  def self.create_or_find_application_for_account(client_id, current_user, redirect_uri = nil)
     # Verify the user is an administrator
     return nil unless current_user.administrator?
 

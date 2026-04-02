@@ -118,7 +118,6 @@ class OauthAuthorizationController < Doorkeeper::AuthorizationsController
       # Dynamic OAuth application creation
       dynamic_app = DynamicOauthService.create_or_find_application_for_account(
         client_id,
-        nil,
         current_resource_owner,
         redirect_uri
       )
