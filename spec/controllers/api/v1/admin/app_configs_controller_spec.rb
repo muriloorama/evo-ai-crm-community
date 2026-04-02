@@ -220,4 +220,118 @@ RSpec.describe Api::V1::Admin::AppConfigsController, type: :controller do
       end
     end
   end
+
+  describe 'POST #test_connection' do
+    context 'when not authenticated' do
+      it 'returns 401' do
+        post :test_connection, params: { config_type: 'smtp' }, format: :json
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as non-admin' do
+      include_context 'authenticated non-admin'
+
+      it 'returns unauthorized' do
+        post :test_connection, params: { config_type: 'smtp' }, format: :json
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated as admin' do
+      include_context 'authenticated admin'
+
+      context 'with unknown config type' do
+        it 'returns 404' do
+          post :test_connection, params: { config_type: 'nonexistent' }, format: :json
+
+          expect(response).to have_http_status(:not_found)
+          body = JSON.parse(response.body)
+          expect(body['success']).to be false
+        end
+      end
+
+      context 'with smtp config type and MAILER_TYPE=smtp' do
+        before do
+          allow(GlobalConfigService).to receive(:load).with('MAILER_TYPE', 'smtp').and_return('smtp')
+          service = instance_double(ConfigTest::SmtpTestService)
+          allow(ConfigTest::SmtpTestService).to receive(:new).and_return(service)
+          allow(service).to receive(:call).and_return({ success: true, message: 'SMTP connection successful' })
+        end
+
+        it 'routes to SmtpTestService and returns 200' do
+          post :test_connection, params: { config_type: 'smtp' }, format: :json
+
+          expect(response).to have_http_status(:ok)
+          body = JSON.parse(response.body)
+          expect(body['success']).to be true
+          expect(body['data']['success']).to be true
+          expect(body['data']['message']).to eq('SMTP connection successful')
+        end
+      end
+
+      context 'with smtp config type and MAILER_TYPE=bms' do
+        before do
+          allow(GlobalConfigService).to receive(:load).with('MAILER_TYPE', 'smtp').and_return('bms')
+          service = instance_double(ConfigTest::BmsTestService)
+          allow(ConfigTest::BmsTestService).to receive(:new).and_return(service)
+          allow(service).to receive(:call).and_return({ success: true, message: 'BMS API connection successful' })
+        end
+
+        it 'routes to BmsTestService' do
+          post :test_connection, params: { config_type: 'smtp' }, format: :json
+
+          expect(response).to have_http_status(:ok)
+          body = JSON.parse(response.body)
+          expect(body['data']['message']).to eq('BMS API connection successful')
+        end
+      end
+
+      context 'with smtp config type and MAILER_TYPE=resend' do
+        before do
+          allow(GlobalConfigService).to receive(:load).with('MAILER_TYPE', 'smtp').and_return('resend')
+          service = instance_double(ConfigTest::ResendTestService)
+          allow(ConfigTest::ResendTestService).to receive(:new).and_return(service)
+          allow(service).to receive(:call).and_return({ success: true, message: 'Resend API connection successful' })
+        end
+
+        it 'routes to ResendTestService' do
+          post :test_connection, params: { config_type: 'smtp' }, format: :json
+
+          expect(response).to have_http_status(:ok)
+          body = JSON.parse(response.body)
+          expect(body['data']['message']).to eq('Resend API connection successful')
+        end
+      end
+
+      context 'when connection test fails' do
+        before do
+          allow(GlobalConfigService).to receive(:load).with('MAILER_TYPE', 'smtp').and_return('smtp')
+          service = instance_double(ConfigTest::SmtpTestService)
+          allow(ConfigTest::SmtpTestService).to receive(:new).and_return(service)
+          allow(service).to receive(:call).and_return({ success: false, message: 'Connection refused — check server address and port' })
+        end
+
+        it 'returns 200 with success: false in body' do
+          post :test_connection, params: { config_type: 'smtp' }, format: :json
+
+          expect(response).to have_http_status(:ok)
+          body = JSON.parse(response.body)
+          expect(body['data']['success']).to be false
+          expect(body['data']['message']).to include('Connection refused')
+        end
+      end
+
+      context 'with unsupported config type for testing' do
+        it 'returns unsupported message for storage' do
+          post :test_connection, params: { config_type: 'storage' }, format: :json
+
+          expect(response).to have_http_status(:ok)
+          body = JSON.parse(response.body)
+          expect(body['data']['success']).to be false
+          expect(body['data']['message']).to include('not supported')
+        end
+      end
+    end
+  end
 end

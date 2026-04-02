@@ -68,6 +68,15 @@ module Api
           success_response(data: { config_type: config_type, configs: configs }, message: 'Configuration updated successfully')
         end
 
+        def test_connection
+          config_type = params[:config_type]
+          allowed_keys = CONFIG_TYPES[config_type]
+          return config_type_not_found unless allowed_keys
+
+          result = run_connection_test(config_type)
+          success_response(data: result, message: result[:message])
+        end
+
         private
 
         def build_config_response(allowed_keys)
@@ -93,6 +102,20 @@ module Api
 
               GlobalConfig.set(key, value)
             end
+          end
+        end
+
+        def run_connection_test(config_type)
+          case config_type
+          when 'smtp'
+            mailer_type = GlobalConfigService.load('MAILER_TYPE', 'smtp')
+            case mailer_type
+            when 'bms' then ConfigTest::BmsTestService.new.call
+            when 'resend' then ConfigTest::ResendTestService.new.call
+            else ConfigTest::SmtpTestService.new.call
+            end
+          else
+            { success: false, message: "Connection testing not supported for #{config_type}" }
           end
         end
 

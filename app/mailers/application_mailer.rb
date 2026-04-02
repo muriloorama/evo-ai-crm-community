@@ -3,6 +3,8 @@ class ApplicationMailer < ActionMailer::Base
 
   default from: proc { ApplicationMailer.get_mailer_sender_email }
   around_action :switch_locale
+  before_action :load_dynamic_mail_settings
+  after_action :apply_dynamic_delivery_settings
   layout 'mailer/base'
   # Fetch template from Database if available
   # Order: Account Specific > Installation Specific > Fallback to file
@@ -18,10 +20,85 @@ class ApplicationMailer < ActionMailer::Base
   rescue_from(*ExceptionList::SMTP_EXCEPTIONS, with: :handle_smtp_exceptions)
 
   def smtp_config_set_or_development?
-    ENV.fetch('SMTP_ADDRESS', nil).present? || Rails.env.development?
+    return true if Rails.env.development?
+    return true if ENV.fetch('SMTP_ADDRESS', nil).present?
+
+    if defined?(GlobalConfigService)
+      mailer_type = GlobalConfigService.load('MAILER_TYPE', nil)
+      return true if mailer_type.present?
+
+      db_address = GlobalConfigService.load('SMTP_ADDRESS', nil)
+      return true if db_address.present?
+    end
+
+    false
   end
 
   private
+
+  def load_dynamic_mail_settings
+    return unless defined?(GlobalConfigService)
+
+    mailer_type = GlobalConfigService.load('MAILER_TYPE', 'smtp')
+
+    case mailer_type
+    when 'bms'
+      if GlobalConfigService.load('BMS_API_SECRET', nil).present?
+        @dynamic_delivery_method = :bms
+        @dynamic_delivery_options = {}
+      end
+    when 'resend'
+      resend_api_key = GlobalConfigService.load('RESEND_API_SECRET', ENV.fetch('RESEND_API_KEY', nil))
+      if resend_api_key.present?
+        @dynamic_resend_api_key = resend_api_key
+        @dynamic_delivery_method = :resend
+        @dynamic_delivery_options = {}
+      end
+    else
+      load_dynamic_smtp_settings
+    end
+  rescue => e
+    Rails.logger.warn "Failed to load dynamic mail settings: #{e.message}"
+  end
+
+  def load_dynamic_smtp_settings
+    address = GlobalConfigService.load('SMTP_ADDRESS', ENV.fetch('SMTP_ADDRESS', nil))
+    return unless address.present?
+
+    # Merge onto boot-time settings to preserve SSL/TLS/timeout from ENV
+    smtp = (self.class.smtp_settings || {}).dup
+    smtp[:address] = address
+    smtp[:port] = GlobalConfigService.load('SMTP_PORT', ENV.fetch('SMTP_PORT', 587)).to_i
+    smtp[:user_name] = GlobalConfigService.load('SMTP_USERNAME', ENV.fetch('SMTP_USERNAME', nil))
+    smtp[:password] = GlobalConfigService.load('SMTP_PASSWORD_SECRET', ENV.fetch('SMTP_PASSWORD', nil))
+    smtp[:enable_starttls_auto] = ActiveModel::Type::Boolean.new.cast(
+      GlobalConfigService.load('SMTP_ENABLE_STARTTLS_AUTO', ENV.fetch('SMTP_ENABLE_STARTTLS_AUTO', true))
+    )
+
+    auth = GlobalConfigService.load('SMTP_AUTHENTICATION', ENV.fetch('SMTP_AUTHENTICATION', nil))
+    smtp[:authentication] = auth.to_sym if auth.present?
+
+    domain = GlobalConfigService.load('SMTP_DOMAIN', ENV.fetch('SMTP_DOMAIN', nil))
+    smtp[:domain] = domain if domain.present?
+
+    verify_mode = GlobalConfigService.load('SMTP_OPENSSL_VERIFY_MODE', ENV.fetch('SMTP_OPENSSL_VERIFY_MODE', nil))
+    smtp[:openssl_verify_mode] = verify_mode if verify_mode.present?
+
+    @dynamic_delivery_method = :smtp
+    @dynamic_delivery_options = smtp
+  end
+
+  def apply_dynamic_delivery_settings
+    return unless @dynamic_delivery_method
+
+    options = @dynamic_delivery_options || {}
+
+    if @dynamic_delivery_method == :resend && @dynamic_resend_api_key
+      options = options.merge(api_key: @dynamic_resend_api_key)
+    end
+
+    message.delivery_method(@dynamic_delivery_method, options)
+  end
 
   def handle_smtp_exceptions(message)
     Rails.logger.warn 'Failed to send Email'
@@ -30,7 +107,7 @@ class ApplicationMailer < ActionMailer::Base
 
   def send_mail_with_liquid(*args)
     Rails.logger.info "📤 EMAIL: Preparing to send email to #{args[0][:to]} with subject '#{args[0][:subject]}'"
-    Rails.logger.info "📤 EMAIL: Using delivery method: #{ActionMailer::Base.delivery_method}"
+    Rails.logger.info "📤 EMAIL: Using delivery method: #{@dynamic_delivery_method || ActionMailer::Base.delivery_method}"
 
     mail_obj = mail(*args) do |format|
       # explored sending a multipart email containing both text type and html
