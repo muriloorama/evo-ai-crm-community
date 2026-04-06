@@ -165,7 +165,10 @@ class ActionCableListener < BaseListener
   private
 
   def account_token(account)
-    "account_#{account.id}"
+    return '' if account.nil?
+
+    id = account.is_a?(Hash) ? account['id'] : account.id
+    "account_#{id}"
   end
 
   def typing_event_listener_tokens(account, conversation, user)

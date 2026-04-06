@@ -55,6 +55,8 @@ module EvoAuthConcern
     @current_user = user
     Current.authentication_method = token_type
 
+    Current.account ||= RuntimeConfig.account
+
     # Store tokens for downstream services
     if token_type == 'bearer'
       Current.bearer_token = token

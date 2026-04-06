@@ -52,13 +52,11 @@ class WidgetsController < ActionController::Base
   end
 
   def ensure_account_is_active
-    # Single-tenant: always considered active
   end
 
   def ensure_location_is_supported; end
 
   def additional_attributes
-    # Single-tenant: ip_lookup is always available
     { created_at_ip: request.remote_ip }
   end
 
