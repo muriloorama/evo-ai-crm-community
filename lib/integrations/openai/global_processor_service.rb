@@ -43,7 +43,7 @@ class Integrations::Openai::GlobalProcessorService
   end
 
   def api_key
-    @api_key ||= GlobalConfigService.load('OPENAI_API_KEY', nil)
+    @api_key ||= GlobalConfigService.load('OPENAI_API_SECRET', nil)
   end
 
   def gpt_model

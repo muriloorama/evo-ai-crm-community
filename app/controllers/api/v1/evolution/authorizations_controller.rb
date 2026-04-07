@@ -6,7 +6,7 @@ class Api::V1::Evolution::AuthorizationsController < Api::V1::BaseController
     auth_params = params[:authorization] || params
 
     api_url = auth_params[:api_url].presence || GlobalConfigService.load('EVOLUTION_API_URL', '').to_s.strip
-    admin_token = auth_params[:admin_token].presence || GlobalConfigService.load('EVOLUTION_ADMIN_TOKEN', '').to_s.strip
+    admin_token = auth_params[:admin_token].presence || GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', '').to_s.strip
     instance_name = auth_params[:instance_name]
     phone_number = auth_params[:phone_number]
 

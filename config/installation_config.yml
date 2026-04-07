@@ -55,50 +55,6 @@
   description: 'Display default Evolution metadata like favicons and upgrade warnings'
   type: boolean
 
-# ------- Whitelabel Branding Config ------- #
-- name: WHITELABEL_ENABLED
-  value: false
-  display_title: 'Enable Whitelabel'
-  description: 'Enable whitelabel branding customization'
-  type: boolean
-  locked: false
-- name: WHITELABEL_LOGO_LIGHT
-  value: '/brand-assets/logo.svg'
-  display_title: 'Logo (Light Mode)'
-  description: 'Logo URL or path for light theme (SVG, PNG, or JPG)'
-  type: text
-  locked: false
-- name: WHITELABEL_LOGO_DARK
-  value: '/brand-assets/logo_dark.svg'
-  display_title: 'Logo (Dark Mode)'
-  description: 'Logo URL or path for dark theme (SVG, PNG, or JPG)'
-  type: text
-  locked: false
-- name: WHITELABEL_PRIMARY_COLOR_LIGHT
-  value: '#00d4aa'
-  display_title: 'Primary Color (Light Mode)'
-  description: 'Primary color in hexadecimal format for light theme (e.g., #00d4aa)'
-  type: text
-  locked: false
-- name: WHITELABEL_PRIMARY_COLOR_DARK
-  value: '#00ffcc'
-  display_title: 'Primary Color (Dark Mode)'
-  description: 'Primary color in hexadecimal format for dark theme (e.g., #00ffcc)'
-  type: text
-  locked: false
-- name: WHITELABEL_PRIMARY_FOREGROUND_LIGHT
-  value: '#ffffff'
-  display_title: 'Primary Foreground (Light Mode)'
-  description: 'Text color on primary background for light theme (hexadecimal format, e.g., #ffffff)'
-  type: text
-  locked: false
-- name: WHITELABEL_PRIMARY_FOREGROUND_DARK
-  value: '#000000'
-  display_title: 'Primary Foreground (Dark Mode)'
-  description: 'Text color on primary background for dark theme (hexadecimal format, e.g., #000000)'
-  type: text
-  locked: false
-# ------- End of Whitelabel Branding Config ------- #
 # ------- End of Branding Related Config ------- #
 
 # ------- Signup & Account Related Config ------- #
@@ -131,11 +87,147 @@
 # ------- End of Account Related Config ------- #
 
 # ------- Email Related Config ------- #
-- name: MAILER_INBOUND_EMAIL_DOMAIN
+- name: SMTP_ADDRESS
+  display_title: 'SMTP Server Address'
   value:
+  locked: false
+  description: 'SMTP server hostname (e.g., smtp.gmail.com)'
+  type: text
+- name: SMTP_PORT
+  display_title: 'SMTP Port'
+  value: '587'
+  locked: false
+  description: 'SMTP server port (e.g., 587 for STARTTLS, 465 for SSL)'
+  type: text
+- name: SMTP_USERNAME
+  display_title: 'SMTP Username'
+  value:
+  locked: false
+  description: 'SMTP authentication username'
+  type: text
+- name: SMTP_PASSWORD_SECRET
+  display_title: 'SMTP Password'
+  value:
+  locked: false
+  description: 'SMTP authentication password'
+  type: secret
+- name: SMTP_AUTHENTICATION
+  display_title: 'SMTP Authentication'
+  value: 'login'
+  locked: false
+  description: 'SMTP authentication method (e.g., login, plain, cram_md5)'
+  type: text
+- name: SMTP_DOMAIN
+  display_title: 'SMTP Domain'
+  value:
+  locked: false
+  description: 'SMTP HELO/EHLO domain'
+  type: text
+- name: SMTP_ENABLE_STARTTLS_AUTO
+  display_title: 'Enable STARTTLS Auto'
+  value: true
+  locked: false
+  description: 'Automatically enable STARTTLS if the server supports it'
+  type: boolean
+- name: SMTP_OPENSSL_VERIFY_MODE
+  display_title: 'OpenSSL Verify Mode'
+  value:
+  locked: false
+  description: 'OpenSSL verification mode (e.g., none, peer)'
+  type: text
+- name: MAILER_SENDER_EMAIL
+  display_title: 'Mailer Sender Email'
+  value:
+  locked: false
+  description: 'Default sender email address for outgoing emails (e.g., Evolution <accounts@evoai.app>)'
+  type: text
+- name: MAILER_TYPE
+  display_title: 'Mailer Type'
+  value: 'smtp'
+  locked: false
+  description: 'Email delivery provider type (smtp, bms, or resend)'
+  type: text
+- name: RESEND_API_SECRET
+  display_title: 'Resend API Secret'
+  value:
+  locked: false
+  description: 'Resend email provider API key'
+  type: secret
+## ------ Inbound Email Configuration ------ ##
+- name: RAILS_INBOUND_EMAIL_SERVICE
+  display_title: 'Inbound Email Service'
+  value: 'relay'
+  locked: false
+  description: 'Inbound email ingress provider (relay, mailgun, mandrill, sendgrid)'
+  type: text
+- name: RAILS_INBOUND_EMAIL_PASSWORD_SECRET
+  display_title: 'Inbound Email Password'
+  value:
+  locked: false
+  description: 'Password for Action Mailbox ingress authentication'
+  type: secret
+- name: MAILER_INBOUND_EMAIL_DOMAIN
+  display_title: 'Inbound Email Domain'
+  value:
+  locked: false
   description: 'The domain name to be used for generating conversation continuity emails (reply+id@domain.com)'
+  type: text
+- name: MAILGUN_SIGNING_SECRET
+  display_title: 'Mailgun Signing Key'
+  value:
+  locked: false
+  description: 'Mailgun webhook signing key for inbound email verification'
+  type: secret
+- name: MANDRILL_API_SECRET
+  display_title: 'Mandrill API Key'
+  value:
+  locked: false
+  description: 'Mandrill API key for inbound email processing'
+  type: secret
+## ------ End Inbound Email Configuration ------ ##
+- name: MAILER_SUPPORT_EMAIL
+  value:
   locked: false
 # ------- End of Email Related Config ------- #
+
+## ------ Cloud Storage Configuration ------ ##
+- name: ACTIVE_STORAGE_SERVICE
+  display_title: 'Storage Service'
+  value: 'local'
+  locked: false
+  description: 'Active storage provider (local, amazon, s3_compatible, google, microsoft)'
+  type: text
+- name: STORAGE_BUCKET_NAME
+  display_title: 'Bucket Name'
+  value:
+  locked: false
+  description: 'S3/R2 bucket name for file uploads'
+  type: text
+- name: STORAGE_ACCESS_KEY_ID
+  display_title: 'Access Key ID'
+  value:
+  locked: false
+  description: 'S3-compatible access key ID'
+  type: text
+- name: STORAGE_ACCESS_SECRET
+  display_title: 'Secret Access Key'
+  value:
+  locked: false
+  description: 'S3-compatible secret access key'
+  type: secret
+- name: STORAGE_REGION
+  display_title: 'Region'
+  value:
+  locked: false
+  description: 'S3 region (e.g., us-east-1, auto for R2)'
+  type: text
+- name: STORAGE_ENDPOINT
+  display_title: 'Endpoint URL'
+  value:
+  locked: false
+  description: 'Custom endpoint for S3-compatible providers (e.g., Cloudflare R2, DigitalOcean Spaces)'
+  type: text
+## ------ End Cloud Storage Configuration ------ ##
 
 # ------- Facebook Channel Related Config ------- #
 - name: FB_APP_ID
@@ -257,12 +349,24 @@
   value:
   locked: false
   description: 'Firebase project ID'
-- name: FIREBASE_CREDENTIALS
-  display_title: 'Firebase Credentials'
+- name: FIREBASE_CREDENTIALS_SECRET
+  display_title: 'Firebase Credentials JSON'
   value:
   locked: false
   type: secret
-  description: 'Contents on your firebase credentials json file'
+  description: 'Firebase service account credentials JSON for push notifications'
+- name: IOS_APP_ID
+  display_title: 'iOS App ID'
+  value:
+  locked: false
+  description: 'iOS application bundle identifier for push notifications'
+  type: text
+- name: ANDROID_BUNDLE_ID
+  display_title: 'Android Bundle ID'
+  value:
+  locked: false
+  description: 'Android application package name for push notifications'
+  type: text
 ## ------ End of Configs added for FCM v1 notifications ------ ##
 
 ## ------ Configs added for Evolution ------ ##
@@ -271,11 +375,11 @@
   value:
   locked: false
   description: 'Evolution API URL'
-- name: EVOLUTION_ADMIN_TOKEN
-  display_title: 'Evolution Admin Token'
+- name: EVOLUTION_ADMIN_SECRET
+  display_title: 'Evolution Admin Secret'
   value:
   locked: false
-  description: 'Evolution Admin Token'
+  description: 'Evolution admin API secret key'
   type: secret
 ## ------ End of Configs added for Evolution ------ ##
 
@@ -285,24 +389,51 @@
   value:
   locked: false
   description: 'Evolution Go API URL'
-- name: EVOLUTION_GO_ADMIN_TOKEN
-  display_title: 'Evolution Go Admin Token'
+- name: EVOLUTION_GO_ADMIN_SECRET
+  display_title: 'Evolution Go Admin Secret'
   value:
   locked: false
-  description: 'Evolution Go Admin Token'
+  description: 'Evolution Go admin API secret key'
   type: secret
 - name: EVOLUTION_GO_INSTANCE_ID
   display_title: 'Evolution Go Instance ID'
   value:
   locked: false
   description: 'Evolution Go Instance ID'
-- name: EVOLUTION_GO_INSTANCE_TOKEN
-  display_title: 'Evolution Go Instance Token'
+- name: EVOLUTION_GO_INSTANCE_SECRET
+  display_title: 'Evolution Go Instance Secret'
   value:
   locked: false
-  description: 'Evolution Go Instance Token'
+  description: 'Evolution Go instance API secret key'
   type: secret
 ## ------ End of Configs added for Evolution Go ------ ##
+
+## ------ Configs added for Twitter Channel ------ ##
+- name: TWITTER_APP_ID
+  display_title: 'Twitter App ID'
+  value:
+  locked: false
+  description: 'Twitter application ID'
+  type: text
+- name: TWITTER_CONSUMER_KEY
+  display_title: 'Twitter Consumer Key'
+  value:
+  locked: false
+  description: 'Twitter API consumer key'
+  type: text
+- name: TWITTER_CONSUMER_SECRET
+  display_title: 'Twitter Consumer Secret'
+  value:
+  locked: false
+  description: 'Twitter API consumer secret'
+  type: secret
+- name: TWITTER_ENVIRONMENT
+  display_title: 'Twitter Environment'
+  value:
+  locked: false
+  description: 'Twitter API environment label (e.g., production)'
+  type: text
+## ------ End of Configs added for Twitter Channel ------ ##
 
 ## ------ Configs added for OpenAI ------ ##
 - name: OPENAI_API_URL
@@ -310,11 +441,11 @@
   value: 'https://api.openai.com/v1'
   locked: false
   description: 'OpenAI API URL'
-- name: OPENAI_API_KEY
-  display_title: 'OpenAI API Key'
+- name: OPENAI_API_SECRET
+  display_title: 'OpenAI API Secret'
   value:
   locked: false
-  description: 'OpenAI API Key'
+  description: 'OpenAI API secret key'
   type: secret
 - name: OPENAI_MODEL
   display_title: 'OpenAI Model'
@@ -404,11 +535,11 @@
 ## ------ End of Configs added for Google OAuth ------ ##
 
 ## ------ Configs added for BMS ------ ##
-- name: BMS_API_KEY
-  display_title: 'BMS API Key'
+- name: BMS_API_SECRET
+  display_title: 'BMS API Secret'
   value:
   locked: false
-  description: 'BMS API Key'
+  description: 'BMS API secret key'
   type: secret
 - name: BMS_IPPOOL
   display_title: 'BMS IP Pool'
@@ -498,3 +629,20 @@
   value: 'v23.0'
   locked: true
 # ------- End of Instagram Channel Related Config ------- #
+
+## ------ Frontend Runtime Configuration ------ ##
+- name: RECAPTCHA_SITE_KEY
+  display_title: 'reCAPTCHA Site Key'
+  value:
+  locked: false
+  description: 'Google reCAPTCHA v3 site key for bot protection'
+  type: text
+
+- name: CLARITY_PROJECT_ID
+  display_title: 'Clarity Project ID'
+  value:
+  locked: false
+  description: 'Microsoft Clarity project ID for user behavior analytics'
+  type: text
+## ------ End Frontend Runtime Configuration ------ ##
+

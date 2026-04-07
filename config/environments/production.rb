@@ -29,7 +29,7 @@ Rails.application.configure do
   # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for NGINX
 
   # Store uploaded files on the local file system (see config/storage.yml for options)
-  config.active_storage.service = ENV.fetch('ACTIVE_STORAGE_SERVICE', 'local').to_sym
+  config.active_storage.service = GlobalConfigService.load('ACTIVE_STORAGE_SERVICE', ENV.fetch('ACTIVE_STORAGE_SERVICE', 'local')).to_sym
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = ActiveModel::Type::Boolean.new.cast(ENV.fetch('FORCE_SSL', false))
@@ -89,7 +89,7 @@ Rails.application.configure do
   # :mandrill for Mandrill
   # :postmark for Postmark
   # :sendgrid for Sendgrid
-  config.action_mailbox.ingress = ENV.fetch('RAILS_INBOUND_EMAIL_SERVICE', 'relay').to_sym
+  config.action_mailbox.ingress = (GlobalConfigService.load('RAILS_INBOUND_EMAIL_SERVICE', ENV.fetch('RAILS_INBOUND_EMAIL_SERVICE', 'relay')) rescue ENV.fetch('RAILS_INBOUND_EMAIL_SERVICE', 'relay')).to_sym
 
   # Use BACKEND_URL for Active Storage and route URLs
   backend_url = URI.parse(ENV.fetch('BACKEND_URL', 'http://localhost:3000'))

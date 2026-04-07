@@ -250,3 +250,6 @@ gem "opentelemetry-exporter-otlp", "~> 0.31.1"
 gem "opentelemetry-instrumentation-all", "~> 0.90.1"
 
 gem "json_refs", "~> 0.1.9"
+
+# Fernet symmetric encryption for sensitive configuration values
+gem 'fernet'

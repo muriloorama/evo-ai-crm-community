@@ -44,14 +44,14 @@ module Mail
       }
 
       Rails.logger.info "🚀 BMS PROVIDER: Payload prepared for API call"
-      bms_api_key = GlobalConfigService.load('BMS_API_KEY', nil)
+      bms_api_key = GlobalConfigService.load('BMS_API_SECRET', nil)
       bms_ippool = GlobalConfigService.load('BMS_IPPOOL', 'default')
 
       Rails.logger.info "🚀 BMS PROVIDER: API Key: #{bms_api_key.present? ? '***CONFIGURED***' : '***NOT SET***'}"
       Rails.logger.info "🚀 BMS PROVIDER: IP Pool: #{bms_ippool}"
 
       # Validate API key before making request
-      raise DeliveryError, "BMS_API_KEY not configured" if bms_api_key.blank?
+      raise DeliveryError, "BMS_API_SECRET not configured" if bms_api_key.blank?
 
       response = send_via_bms_api(payload)
       Rails.logger.info "✅ BMS PROVIDER: Email sent successfully via BMS API!"
@@ -78,8 +78,8 @@ module Mail
       http.open_timeout = 10
 
       request = Net::HTTP::Post.new(uri)
-      bms_api_key = GlobalConfigService.load('BMS_API_KEY', nil)
-      raise DeliveryError, "BMS_API_KEY not configured" if bms_api_key.blank?
+      bms_api_key = GlobalConfigService.load('BMS_API_SECRET', nil)
+      raise DeliveryError, "BMS_API_SECRET not configured" if bms_api_key.blank?
 
       request['api-key'] = bms_api_key
       request['Content-Type'] = 'application/json'

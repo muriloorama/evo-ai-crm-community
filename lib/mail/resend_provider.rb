@@ -2,10 +2,15 @@ module Mail
   class ResendProvider
     class DeliveryError < StandardError; end
 
-    def initialize(_settings); end
+    attr_reader :settings
+
+    def initialize(settings = {})
+      @settings = settings
+    end
 
     def deliver!(mail)
-      Resend::Emails.send(
+      client = build_client
+      client.emails.send(
         from: mail.header[:from].to_s,
         to: mail.header[:to].to_s,
         subject: mail.header[:subject].to_s,
@@ -19,6 +24,11 @@ module Mail
     end
 
     private
+
+    def build_client
+      api_key = settings[:api_key] || Resend.api_key
+      Resend::Client.new(api_key: api_key)
+    end
 
     def sanitize_html(html)
       sanitized = ActionView::Base.full_sanitizer.sanitize(html)

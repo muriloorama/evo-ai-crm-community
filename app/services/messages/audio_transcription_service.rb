@@ -133,7 +133,7 @@ class Messages::AudioTranscriptionService
 
   def get_openai_api_key
     # Priority 1: Try global configuration (same pattern as OpenaiBaseService)
-    global_api_key = GlobalConfigService.load('OPENAI_API_KEY', nil)
+    global_api_key = GlobalConfigService.load('OPENAI_API_SECRET', nil)
     if global_api_key.present?
       Rails.logger.info "AudioTranscriptionService: Using global OpenAI API key"
       return global_api_key

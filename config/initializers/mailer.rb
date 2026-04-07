@@ -14,6 +14,8 @@ Rails.application.configure do
   config.action_mailer.raise_delivery_errors = true
 
   # Config related to smtp
+  # Boot-time SMTP settings use ENV only (GlobalConfigService may not be available yet)
+  # Dynamic SMTP settings from DB are loaded per-email in ApplicationMailer
   smtp_settings = {
     address: ENV.fetch('SMTP_ADDRESS', 'localhost'),
     port: ENV.fetch('SMTP_PORT', 587)
@@ -48,19 +50,29 @@ Rails.application.configure do
   Rails.application.configure do
     config.after_initialize do
       begin
-        # Load configurations from GlobalConfig (database) - highest priority
-        bms_api_key = GlobalConfigService.load('BMS_API_KEY', nil) if defined?(GlobalConfigService)
-        resend_api_key = GlobalConfigService.load('RESEND_API_KEY', nil) if defined?(GlobalConfigService)
-        resend_api_key ||= ENV['RESEND_API_KEY']  # Fallback to ENV
+        # Load MAILER_TYPE from GlobalConfigService (DB → ENV → default)
+        mailer_type = GlobalConfigService.load('MAILER_TYPE', 'smtp') if defined?(GlobalConfigService)
+        mailer_type ||= 'smtp'
 
-        if bms_api_key.present?
-          ActionMailer::Base.delivery_method = :bms
-          Rails.logger.info "📧 MAILER CONFIG: BMS email provider configured as primary delivery method"
-        elsif resend_api_key.present?
-          ActionMailer::Base.delivery_method = :resend
-          Rails.logger.info "📧 MAILER CONFIG: Resend email provider configured as delivery method"
+        case mailer_type
+        when 'bms'
+          bms_api_key = GlobalConfigService.load('BMS_API_SECRET', nil) if defined?(GlobalConfigService)
+          if bms_api_key.present?
+            ActionMailer::Base.delivery_method = :bms
+            Rails.logger.info "📧 MAILER CONFIG: BMS email provider configured as delivery method (MAILER_TYPE=bms)"
+          else
+            Rails.logger.warn "📧 MAILER CONFIG: MAILER_TYPE=bms but BMS_API_SECRET not set, falling back to SMTP"
+          end
+        when 'resend'
+          resend_api_key = GlobalConfigService.load('RESEND_API_SECRET', ENV.fetch('RESEND_API_KEY', nil)) if defined?(GlobalConfigService)
+          if resend_api_key.present?
+            ActionMailer::Base.delivery_method = :resend
+            Rails.logger.info "📧 MAILER CONFIG: Resend email provider configured as delivery method (MAILER_TYPE=resend)"
+          else
+            Rails.logger.warn "📧 MAILER CONFIG: MAILER_TYPE=resend but RESEND_API_SECRET not set, falling back to SMTP"
+          end
         else
-          Rails.logger.info "📧 MAILER CONFIG: Using SMTP/Sendmail delivery method (no BMS/Resend configured)"
+          Rails.logger.info "📧 MAILER CONFIG: Using SMTP/Sendmail delivery method (MAILER_TYPE=smtp)"
         end
       rescue => e
         Rails.logger.warn "📧 MAILER CONFIG: Error loading email provider configs: #{e.message}, using SMTP"

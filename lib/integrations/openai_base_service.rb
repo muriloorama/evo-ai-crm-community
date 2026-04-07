@@ -96,7 +96,7 @@ class Integrations::OpenaiBaseService
   # Get API key from global configuration or hook settings (fallback)
   def api_key
     # Priority 1: Try global global configuration
-    global_api_key = GlobalConfigService.load('OPENAI_API_KEY', nil)
+    global_api_key = GlobalConfigService.load('OPENAI_API_SECRET', nil)
     return global_api_key if global_api_key.present?
 
     # Priority 2: Fallback to hook settings for backward compatibility

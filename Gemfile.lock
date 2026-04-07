@@ -222,6 +222,8 @@ GEM
     fcm (1.0.8)
       faraday (>= 1.0.0, < 3.0)
       googleauth (~> 1)
+    fernet (2.3)
+      valcro (~> 0.1)
     ffi (1.17.2)
     ffi (1.17.2-arm64-darwin)
     ffi (1.17.2-x86_64-darwin)
@@ -925,6 +927,7 @@ GEM
     uniform_notifier (1.17.0)
     uri (1.0.3)
     uri_template (0.7.0)
+    valcro (0.2.1)
     valid_email2 (5.2.6)
       activemodel (>= 3.2)
       mail (~> 2.5)
@@ -992,6 +995,7 @@ DEPENDENCIES
   factory_bot_rails (>= 6.4.3)
   faker
   fcm
+  fernet
   flag_shih_tzu
   foreman
   geocoder

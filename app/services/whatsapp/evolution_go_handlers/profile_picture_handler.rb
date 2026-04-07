@@ -71,7 +71,7 @@ module Whatsapp::EvolutionGoHandlers::ProfilePictureHandler
   end
 
   def global_instance_token
-    @global_instance_token ||= GlobalConfigService.load('EVOLUTION_GO_INSTANCE_TOKEN', '')
+    @global_instance_token ||= GlobalConfigService.load('EVOLUTION_GO_INSTANCE_SECRET', '')
   end
 
   # Channel configuration (existing)

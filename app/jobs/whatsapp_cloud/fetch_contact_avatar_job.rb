@@ -23,14 +23,14 @@ class WhatsappCloud::FetchContactAvatarJob < ApplicationJob
 
   def evolution_go_configured?
     api_url = GlobalConfigService.load('EVOLUTION_GO_API_URL', '')
-    instance_token = GlobalConfigService.load('EVOLUTION_GO_INSTANCE_TOKEN', '')
+    instance_token = GlobalConfigService.load('EVOLUTION_GO_INSTANCE_SECRET', '')
 
     api_url.present? && instance_token.present?
   end
 
   def fetch_profile_picture_from_evolution_go(phone_number)
     api_url = GlobalConfigService.load('EVOLUTION_GO_API_URL', '')
-    instance_token = GlobalConfigService.load('EVOLUTION_GO_INSTANCE_TOKEN', '')
+    instance_token = GlobalConfigService.load('EVOLUTION_GO_INSTANCE_SECRET', '')
 
     Rails.logger.debug { "WhatsApp Cloud: Calling Evolution Go /user/avatar for number #{phone_number}" }
 

@@ -111,24 +111,26 @@ class DashboardController < ActionController::Base
   end
 
   def platform_config
+    # TODO: [Story 1.4] _SECRET values are exposed as plaintext to frontend here.
+    # Replace with boolean presence checks or masked values once admin controller is built.
     {
       EVOLUTION_API_URL: GlobalConfigService.load('EVOLUTION_API_URL', ''),
-      EVOLUTION_ADMIN_TOKEN: GlobalConfigService.load('EVOLUTION_ADMIN_TOKEN', ''),
+      EVOLUTION_ADMIN_SECRET: GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', ''),
       EVOLUTION_GO_API_URL: GlobalConfigService.load('EVOLUTION_GO_API_URL', ''),
-      EVOLUTION_GO_ADMIN_TOKEN: GlobalConfigService.load('EVOLUTION_GO_ADMIN_TOKEN', ''),
+      EVOLUTION_GO_ADMIN_SECRET: GlobalConfigService.load('EVOLUTION_GO_ADMIN_SECRET', ''),
       EVOLUTION_GO_INSTANCE_ID: GlobalConfigService.load('EVOLUTION_GO_INSTANCE_ID', ''),
-      EVOLUTION_GO_INSTANCE_TOKEN: GlobalConfigService.load('EVOLUTION_GO_INSTANCE_TOKEN', ''),
+      EVOLUTION_GO_INSTANCE_SECRET: GlobalConfigService.load('EVOLUTION_GO_INSTANCE_SECRET', ''),
       OPENAI_API_URL: GlobalConfigService.load('OPENAI_API_URL', ''),
-      OPENAI_API_KEY: GlobalConfigService.load('OPENAI_API_KEY', ''),
+      OPENAI_API_SECRET: GlobalConfigService.load('OPENAI_API_SECRET', ''),
       OPENAI_MODEL: GlobalConfigService.load('OPENAI_MODEL', 'gpt-4.1-nano'),
       AZURE_APP_ID: GlobalConfigService.load('AZURE_APP_ID', ''),
       GOOGLE_OAUTH_CLIENT_ID: GlobalConfigService.load('GOOGLE_OAUTH_CLIENT_ID', ''),
       GOOGLE_OAUTH_CLIENT_SECRET: GlobalConfigService.load('GOOGLE_OAUTH_CLIENT_SECRET', ''),
       GOOGLE_OAUTH_CALLBACK_URL: GlobalConfigService.load('GOOGLE_OAUTH_CALLBACK_URL', ''),
-      BMS_API_KEY: GlobalConfigService.load('BMS_API_KEY', ''),
+      BMS_API_SECRET: GlobalConfigService.load('BMS_API_SECRET', ''),
       BMS_IPPOOL: GlobalConfigService.load('BMS_IPPOOL', ''),
       FIREBASE_PROJECT_ID: GlobalConfigService.load('FIREBASE_PROJECT_ID', ''),
-      FIREBASE_CREDENTIALS: GlobalConfigService.load('FIREBASE_CREDENTIALS', '')
+      FIREBASE_CREDENTIALS_SECRET: GlobalConfigService.load('FIREBASE_CREDENTIALS_SECRET', '')
     }
   end
 end

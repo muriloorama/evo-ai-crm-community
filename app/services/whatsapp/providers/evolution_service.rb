@@ -107,7 +107,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
 
   def validate_provider_config?
     api_url = whatsapp_channel.provider_config['api_url'].presence || GlobalConfigService.load('EVOLUTION_API_URL', '').to_s.strip
-    admin_token = whatsapp_channel.provider_config['admin_token'].presence || GlobalConfigService.load('EVOLUTION_ADMIN_TOKEN', '').to_s.strip
+    admin_token = whatsapp_channel.provider_config['admin_token'].presence || GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', '').to_s.strip
     
     # Try multiple keys for instance name
     instance_name = whatsapp_channel.provider_config['instance_name'].presence || 
@@ -133,7 +133,7 @@ class Whatsapp::Providers::EvolutionService < Whatsapp::Providers::BaseService
   end
 
   def api_headers
-    admin_token = whatsapp_channel.provider_config['admin_token'].presence || GlobalConfigService.load('EVOLUTION_ADMIN_TOKEN', '').to_s.strip
+    admin_token = whatsapp_channel.provider_config['admin_token'].presence || GlobalConfigService.load('EVOLUTION_ADMIN_SECRET', '').to_s.strip
     {
       'apikey' => admin_token,
       'Content-Type' => 'application/json'
