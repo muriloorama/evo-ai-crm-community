@@ -16,7 +16,6 @@ class Api::V1::PipelineItemsController < Api::V1::BaseController
         :contact,
         :assignee,
         :team,
-        :account,
         messages: [:attachments, :sender]
       ]
     )
@@ -130,7 +129,6 @@ class Api::V1::PipelineItemsController < Api::V1::BaseController
           :contact,
           :assignee,
           :team,
-          :account,
           messages: [:attachments, :sender]
         ]
       ).find(@pipeline_item.id)
