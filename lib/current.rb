@@ -9,6 +9,7 @@ module Current
   thread_mattr_accessor :authentication_method
   thread_mattr_accessor :evo_auth_validation_cache
   thread_mattr_accessor :evo_permission_cache
+  thread_mattr_accessor :evo_role_key
 
   def self.reset
     Current.user = nil
@@ -21,5 +22,6 @@ module Current
     Current.authentication_method = nil
     Current.evo_auth_validation_cache = nil
     Current.evo_permission_cache = nil
+    Current.evo_role_key = nil
   end
 end

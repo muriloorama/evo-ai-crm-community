@@ -2,7 +2,6 @@
 class Api::V1::Oauth::AgentsController < Api::V1::AgentsController
   require_permissions({
     index: 'oauth_agents.read',
-    show: 'oauth_agents.read',
     create: 'oauth_agents.create',
     update: 'oauth_agents.update',
     destroy: 'oauth_agents.delete'

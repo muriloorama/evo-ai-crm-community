@@ -18,7 +18,7 @@ module UserAttributeHelpers
   end
 
   def administrator?
-    type == 'SuperAdmin'
+    Current.evo_role_key.in?(%w[account_owner administrator admin])
   end
 
   def agent?

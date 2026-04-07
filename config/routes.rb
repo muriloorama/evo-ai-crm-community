@@ -384,6 +384,11 @@ Rails.application.routes.draw do
         post 'profile/info', to: 'evolution_go/profile#info', as: :profile_info
         post 'profile/avatar', to: 'evolution_go/profile#avatar', as: :profile_avatar
         post 'profile/picture', to: 'evolution_go/profile#update_picture', as: :profile_update_picture
+        get 'profile/:id', to: 'evolution_go/profile#show', as: :profile_show
+        post 'profile/:id/name', to: 'evolution_go/profile#update_name', as: :profile_update_name
+        post 'profile/:id/status', to: 'evolution_go/profile#update_status', as: :profile_update_status
+        post 'profile/:id/picture', to: 'evolution_go/profile#update_picture_by_instance', as: :profile_update_picture_by_instance
+        delete 'profile/:id/picture', to: 'evolution_go/profile#remove_picture', as: :profile_remove_picture
       end
 
       scope path: 'zapi', as: 'zapi' do

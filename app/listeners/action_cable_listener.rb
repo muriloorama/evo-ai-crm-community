@@ -177,9 +177,8 @@ class ActionCableListener < BaseListener
   end
 
   def user_tokens(_account, agents)
-    agent_tokens = agents.pluck(:pubsub_token)
-    admin_tokens = User.where(type: 'SuperAdmin').pluck(:pubsub_token)
-    (agent_tokens + admin_tokens).uniq
+    # All users receive broadcasts - permission filtering is handled by evo-auth
+    User.pluck(:pubsub_token).compact.uniq
   end
 
   def contact_tokens(contact_inbox, message)

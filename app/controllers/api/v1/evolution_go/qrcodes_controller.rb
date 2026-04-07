@@ -1,4 +1,6 @@
 class Api::V1::EvolutionGo::QrcodesController < Api::V1::BaseController
+  include EvolutionGoConcern
+
   before_action :set_instance_params, only: [:show, :create]
 
   def show
@@ -10,6 +12,9 @@ class Api::V1::EvolutionGo::QrcodesController < Api::V1::BaseController
           error: 'Missing required parameters: api_url, instance_token, instance_uuid'
         }, status: :bad_request
       end
+
+      # Connect instance first to configure webhook and events
+      connect_instance(@api_url, @instance_token)
 
       # Get QR code using Evolution Go API
       qrcode_data = get_qrcode_go(@api_url, @instance_token)
