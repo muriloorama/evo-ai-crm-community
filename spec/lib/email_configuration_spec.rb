@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe 'Email Configuration (Story 2.1)' do
   before do
     ENV['ENCRYPTION_KEY'] = 'test-encryption-key-for-fernet!!'
+    InstallationConfig.reset_encryption_key_cache!
     # Stub Redis to avoid cache pollution between tests
     redis_double = double('redis')
     allow($alfred).to receive(:with).and_yield(redis_double)

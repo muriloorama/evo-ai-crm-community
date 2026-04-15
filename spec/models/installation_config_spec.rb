@@ -4,8 +4,15 @@ RSpec.describe InstallationConfig, type: :model do
   let(:encryption_key) { Base64.urlsafe_encode64(SecureRandom.random_bytes(32)) }
 
   before do
+    described_class.reset_encryption_key_cache!
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('ENCRYPTION_KEY').and_return(encryption_key)
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('ENCRYPTION_KEY').and_return(encryption_key)
+  end
+
+  after do
+    described_class.reset_encryption_key_cache!
   end
 
   describe '#sensitive?' do
@@ -138,9 +145,38 @@ RSpec.describe InstallationConfig, type: :model do
   end
 
   describe '.encryption_key' do
-    it 'raises error when ENCRYPTION_KEY is not set' do
-      allow(ENV).to receive(:fetch).with('ENCRYPTION_KEY').and_yield
-      expect { described_class.encryption_key }.to raise_error(RuntimeError, /ENCRYPTION_KEY/)
+    it 'returns the ENCRYPTION_KEY env var when present' do
+      expect(described_class.encryption_key).to eq(encryption_key)
+    end
+
+    context 'when ENCRYPTION_KEY is not set' do
+      before do
+        described_class.reset_encryption_key_cache!
+        allow(ENV).to receive(:[]).with('ENCRYPTION_KEY').and_return(nil)
+      end
+
+      it 'derives a deterministic key from SECRET_KEY_BASE' do
+        first = described_class.encryption_key
+        described_class.reset_encryption_key_cache!
+        second = described_class.encryption_key
+
+        expect(first).to be_present
+        expect(first).to eq(second)
+      end
+
+      it 'derives a valid Fernet key usable for encrypt/decrypt' do
+        key = described_class.encryption_key
+        token = Fernet.generate(key, 'roundtrip')
+        verifier = Fernet.verifier(key, token, enforce_ttl: false)
+        expect(verifier.valid?).to be true
+        expect(verifier.message).to eq('roundtrip')
+      end
+
+      it 'raises when SECRET_KEY_BASE is also absent' do
+        allow(ENV).to receive(:[]).with('SECRET_KEY_BASE').and_return(nil)
+        allow(Rails.application).to receive(:secret_key_base).and_return(nil)
+        expect { described_class.encryption_key }.to raise_error(RuntimeError, /ENCRYPTION_KEY/)
+      end
     end
   end
 

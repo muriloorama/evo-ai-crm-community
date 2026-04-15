@@ -8,9 +8,16 @@ RSpec.describe 'RenameSensitiveKeysAndEncrypt migration', type: :model do
   let(:migration) { migration_class.new }
 
   before do
+    InstallationConfig.reset_encryption_key_cache!
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with('ENCRYPTION_KEY').and_return(encryption_key)
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('ENCRYPTION_KEY').and_return(encryption_key)
     allow(ENV).to receive(:fetch).with('ENCRYPTION_KEY', nil).and_return(encryption_key)
+  end
+
+  after do
+    InstallationConfig.reset_encryption_key_cache!
   end
 
   # Use migration's local model to avoid app model callbacks

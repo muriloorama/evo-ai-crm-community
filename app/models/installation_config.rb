@@ -34,8 +34,29 @@ class InstallationConfig < ApplicationRecord
 
   after_commit :clear_cache
 
+  ENCRYPTION_KEY_DERIVATION_SALT = 'installation_config_encryption_v1'
+
   def self.encryption_key
-    ENV.fetch('ENCRYPTION_KEY') { raise 'ENCRYPTION_KEY environment variable is required' }
+    @encryption_key ||= resolve_encryption_key
+  end
+
+  def self.reset_encryption_key_cache!
+    @encryption_key = nil
+  end
+
+  def self.resolve_encryption_key
+    ENV['ENCRYPTION_KEY'].presence || derive_encryption_key_from_secret_key_base
+  end
+
+  def self.derive_encryption_key_from_secret_key_base
+    secret = ENV['SECRET_KEY_BASE'].presence ||
+             (defined?(Rails) && Rails.application&.secret_key_base.presence)
+    raise 'ENCRYPTION_KEY or SECRET_KEY_BASE must be set' if secret.blank?
+
+    key_material = ActiveSupport::KeyGenerator.new(secret).generate_key(
+      ENCRYPTION_KEY_DERIVATION_SALT, 32
+    )
+    Base64.urlsafe_encode64(key_material)
   end
 
   def sensitive?

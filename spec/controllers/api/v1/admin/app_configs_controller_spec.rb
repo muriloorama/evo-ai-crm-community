@@ -16,10 +16,12 @@ RSpec.describe Api::V1::Admin::AppConfigsController, type: :controller do
 
   before do
     ENV['ENCRYPTION_KEY'] = 'test-encryption-key-for-fernet!!'
+    InstallationConfig.reset_encryption_key_cache!
   end
 
   after do
     Current.reset
+    InstallationConfig.reset_encryption_key_cache!
   end
 
   shared_context 'authenticated admin' do
