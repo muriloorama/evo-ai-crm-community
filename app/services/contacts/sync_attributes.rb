@@ -16,7 +16,19 @@ class Contacts::SyncAttributes
     # Ensure that location and country_code are updated from additional_attributes.
     # TODO: Remove this once all contacts are updated and both the location and country_code fields are standardized throughout the app.
     @contact.location = @contact.additional_attributes['city'] || ''
-    @contact.country_code = @contact.additional_attributes['country'] || ''
+    @contact.country_code = normalize_country_code(@contact.additional_attributes['country'])
+  end
+
+  # additional_attributes['country'] geralmente é uma string ("BR"), mas há caminhos
+  # (TelephoneNumber / phonelib) em que o Hash de country_data inteiro é gravado — o
+  # que estoura a coluna string country_code (255) e faz a validação genérica abortar
+  # o save, quebrando a ingestão inteira da mensagem.
+  def normalize_country_code(value)
+    case value
+    when String then value
+    when Hash   then (value['country_id'] || value['country_code']).to_s
+    else ''
+    end
   end
 
   def set_contact_type
