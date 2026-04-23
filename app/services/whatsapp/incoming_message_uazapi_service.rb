@@ -59,24 +59,7 @@ class Whatsapp::IncomingMessageUazapiService < Whatsapp::IncomingMessageEvolutio
     return if drop_due_to_groups_ignore?
     super
     attach_contact_avatar_if_available
-    capture_tracking_source_if_first_touch
-  end
-
-  # First-touch attribution: parses ad referral / UTM / ctwa_clid on the
-  # first inbound message for this contact and stores it for the Dashboard
-  # "Rastreamento" tab. Idempotent — no-op if already captured.
-  def capture_tracking_source_if_first_touch
-    return unless incoming?
-    return unless @contact
-
-    TrackingSources::CaptureService.new(
-      contact: @contact,
-      conversation: @conversation,
-      inbox: inbox,
-      payload: params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
-    ).perform
-  rescue StandardError => e
-    Rails.logger.warn "[Uazapi] tracking capture skipped: #{e.class} - #{e.message}"
+    capture_tracking_source_if_first_touch if incoming?
   end
 
   # The upstream Evolution handler's message_processable? hard-rejects anything

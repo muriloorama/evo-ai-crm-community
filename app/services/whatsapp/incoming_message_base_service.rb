@@ -32,9 +32,39 @@ class Whatsapp::IncomingMessageBaseService
     set_contact
     return unless @contact
 
+    # Drop incoming messages from contacts that were marked as blocked on
+    # the CRM side. The Meta API still delivers the message (we cannot stop
+    # that without actually blocking on WhatsApp), but we hide it from the
+    # platform so agents don't see the conversation.
+    if @contact.blocked?
+      Rails.logger.info "WhatsApp: dropping inbound message from blocked contact #{@contact.id}"
+      clear_message_source_id_from_redis
+      return
+    end
+
     set_conversation
     create_messages
     clear_message_source_id_from_redis
+    capture_tracking_source_if_first_touch
+  end
+
+  # First-touch attribution: parses ad referral / UTM / ctwa_clid on the first
+  # inbound message for this contact. Invoked automatically by every WhatsApp
+  # provider that goes through process_messages (Cloud API, generic base flow).
+  # Evolution-based flows that override via handle_message (UAZAPI/Evolution/
+  # Evolution Go) call it directly after their own message handling. Idempotent —
+  # CaptureService no-ops on the second call via its uniqueness guard.
+  def capture_tracking_source_if_first_touch
+    return unless @contact
+
+    TrackingSources::CaptureService.new(
+      contact: @contact,
+      conversation: @conversation,
+      inbox: inbox,
+      payload: params.respond_to?(:to_unsafe_h) ? params.to_unsafe_h : params.to_h
+    ).perform
+  rescue StandardError => e
+    Rails.logger.warn "[WhatsApp] tracking capture skipped: #{e.class} - #{e.message}"
   end
 
   def process_statuses
@@ -76,7 +106,31 @@ class Whatsapp::IncomingMessageBaseService
 
     process_in_reply_to(message)
 
-    message_type == 'contacts' ? create_contact_messages(message) : create_regular_message(message)
+    if message_type == 'reaction'
+      create_reaction_message(message)
+    elsif message_type == 'contacts'
+      create_contact_messages(message)
+    else
+      create_regular_message(message)
+    end
+  end
+
+  # Reactions arrive as their own webhook with `reaction.message_id`
+  # pointing at the message the contact reacted to. We store them as a
+  # regular message row with `is_reaction: true` so the UI can render the
+  # emoji underneath the original message (same shape Baileys uses).
+  def create_reaction_message(message)
+    reaction = message[:reaction] || {}
+    @message = @conversation.messages.build(
+      content: reaction[:emoji].to_s,
+      inbox_id: @inbox.id,
+      message_type: :incoming,
+      sender: @contact,
+      source_id: message[:id].to_s,
+      in_reply_to_external_id: reaction[:message_id],
+      is_reaction: true
+    )
+    @message.save!
   end
 
   def create_contact_messages(message)
