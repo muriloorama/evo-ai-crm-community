@@ -502,6 +502,11 @@ ActiveRecord::Schema[7.1].define(version: 9026_04_24_120000) do
     t.index ["type"], name: "index_contacts_on_type"
   end
 
+  create_table "conversation_display_id_counters", primary_key: "account_id", id: :uuid, default: nil, force: :cascade do |t|
+    t.integer "next_value", default: 1, null: false
+    t.datetime "updated_at", default: -> { "now()" }, null: false
+  end
+
   create_table "conversation_participants", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.uuid "conversation_id", null: false
@@ -1760,6 +1765,7 @@ ActiveRecord::Schema[7.1].define(version: 9026_04_24_120000) do
   add_foreign_key "contact_companies", "contacts", column: "company_id"
   add_foreign_key "contact_inboxes", "accounts", on_delete: :cascade
   add_foreign_key "contacts", "accounts", on_delete: :cascade
+  add_foreign_key "conversation_display_id_counters", "accounts", on_delete: :cascade
   add_foreign_key "conversation_participants", "accounts", on_delete: :cascade
   add_foreign_key "conversations", "accounts", on_delete: :cascade
   add_foreign_key "csat_survey_responses", "accounts", on_delete: :cascade

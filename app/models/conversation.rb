@@ -233,15 +233,27 @@ class Conversation < ApplicationRecord
 
   def ensure_display_id
     return if display_id.present?
+    return if account_id.blank?
 
     # display_id is Chatwoot-style: sequential per account starting at 1.
-    # We scope by account_id so each workspace counts independently — account
-    # #7 sees conversation #1, #2, ... while account #8 has its own sequence.
-    # The unique composite index (account_id, display_id) enforces correctness
-    # if two concurrent transactions race; this computation is best-effort.
-    scope = self.class.where(account_id: account_id)
-    max_display_id = scope.maximum(:display_id) || 0
-    self.display_id = max_display_id + 1
+    # We use a per-account counter row (conversation_display_id_counters) and
+    # increment it atomically via UPSERT with RETURNING. The previous
+    # MAX(display_id)+1 approach reused ids whenever the highest-numbered
+    # conversation was deleted — which made the URL of a brand new chat look
+    # identical to the one the user had just trashed. The counter never
+    # regresses, so deletes leave gaps but new conversations always advance.
+    self.display_id = ActiveRecord::Base.connection.select_value(
+      ActiveRecord::Base.send(:sanitize_sql_array, [
+        <<~SQL,
+          INSERT INTO conversation_display_id_counters (account_id, next_value, updated_at)
+          VALUES (?, 1, NOW())
+          ON CONFLICT (account_id)
+          DO UPDATE SET next_value = conversation_display_id_counters.next_value + 1, updated_at = NOW()
+          RETURNING next_value
+        SQL
+        account_id
+      ])
+    )
   end
 
   def execute_after_update_commit_callbacks
