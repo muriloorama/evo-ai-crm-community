@@ -131,16 +131,42 @@ module Whatsapp
         process_response(response)
       end
 
-      def send_attachment_message(phone_number, message)
-        attachment = message.attachments.first
-        type = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
+      # Sends a reaction emoji to an existing WhatsApp message.
+      # Passing an empty emoji removes the reaction on the contact's side.
+      # ref: https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-reactions
+      def send_reaction(phone_number, target_source_id, emoji)
+        response = HTTParty.post(
+          "#{phone_id_path}/messages",
+          headers: api_headers,
+          body: {
+            messaging_product: 'whatsapp',
+            **build_recipient_field(phone_number),
+            type: 'reaction',
+            reaction: {
+              message_id: target_source_id,
+              emoji: emoji.to_s
+            }
+          }.to_json
+        )
 
-        # Audio files are sent via media upload with voice: true
-        if type == 'audio'
-          send_audio_via_media_upload(phone_number, message, attachment)
-        else
-          send_attachment_via_link(phone_number, message, attachment, type)
+        process_response(response)
+      end
+
+      def send_attachment_message(phone_number, message)
+        # Meta Cloud API sends one media per HTTP call, so iterate through all
+        # attachments instead of only dispatching the first.
+        responses = message.attachments.map do |attachment|
+          type = %w[image audio video].include?(attachment.file_type) ? attachment.file_type : 'document'
+
+          if type == 'audio'
+            send_audio_via_media_upload(phone_number, message, attachment)
+          else
+            send_attachment_via_link(phone_number, message, attachment, type)
+          end
         end
+        # Return the last message id so the caller still gets a valid reference;
+        # individual sends log their own failures.
+        responses.last
       end
 
       def error_message(response)
@@ -149,17 +175,91 @@ module Whatsapp
       end
 
       def template_body_parameters(template_info)
-        {
+        payload = {
           name: template_info[:name],
           language: {
             policy: 'deterministic',
             code: template_info[:lang_code]
-          },
-          components: [{
-            type: 'body',
-            parameters: template_info[:parameters]
-          }]
+          }
         }
+
+        components = build_template_components(template_info)
+        payload[:components] = components if components.any?
+        payload
+      end
+
+      # Builds the `components` array Meta expects on every template send.
+      # - HEADER is only attached for media headers (IMAGE/VIDEO/DOCUMENT),
+      #   which require a link to the example asset used at approval time.
+      # - BODY is only attached when at least one variable is substituted.
+      # - BUTTONS are attached only for URL buttons whose url contains a
+      #   `{{n}}` placeholder — static buttons don't need parameters.
+      # Text-only header + static buttons are taken from the approved
+      # template structure and don't need to be repeated in the payload.
+      def build_template_components(template_info)
+        body_parameters = Array(template_info[:parameters]).compact
+        stored_components = template_info[:components] || {}
+        stored_components = stored_components.with_indifferent_access if stored_components.respond_to?(:with_indifferent_access)
+
+        components = []
+        header_component = build_header_component(stored_components[:header])
+        components << header_component if header_component
+        components << { type: 'body', parameters: body_parameters } if body_parameters.any?
+        components.concat(build_button_components(stored_components[:buttons]))
+        components
+      end
+
+      def build_header_component(header)
+        return unless header
+
+        format = header[:format].to_s.downcase
+        return unless %w[image video document].include?(format)
+
+        media_url = header[:url] || header.dig(:example, :header_handle)&.first ||
+                    template_info_header_media_url(header)
+        return if media_url.blank?
+
+        media_payload = { link: media_url }
+        media_payload[:filename] = header[:filename] if format == 'document' && header[:filename].present?
+
+        { type: 'header', parameters: [{ type: format, format.to_sym => media_payload }] }
+      end
+
+      def template_info_header_media_url(header)
+        example = header[:example]
+        return if example.blank?
+
+        # Meta stores media samples under header_handle (array of URLs).
+        Array(example[:header_handle] || example['header_handle']).first
+      end
+
+      def build_button_components(buttons_section)
+        return [] unless buttons_section
+
+        buttons_array = buttons_section.is_a?(Array) ? buttons_section : Array(buttons_section[:buttons])
+        buttons_array.each_with_index.map do |btn, idx|
+          next unless btn
+          type = (btn[:type] || btn['type']).to_s.upcase
+          url = btn[:url] || btn['url']
+          # Only URL buttons with a `{{n}}` placeholder require a parameter.
+          next unless type == 'URL' && url.to_s.include?('{{')
+
+          placeholder = url[/\{\{(\d+)\}\}/, 1].to_i - 1
+          dynamic_value = Array(template_info_button_params)[placeholder] ||
+                          (btn[:example] || btn['example']).to_s
+          {
+            type: 'button',
+            sub_type: 'url',
+            index: idx.to_s,
+            parameters: [{ type: 'text', text: dynamic_value.to_s }]
+          }
+        end.compact
+      end
+
+      # Placeholder hook — today the chat doesn't send per-button params;
+      # extend here when the frontend starts sending them.
+      def template_info_button_params
+        []
       end
 
       def whatsapp_reply_context(message)

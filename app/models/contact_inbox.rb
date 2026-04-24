@@ -9,18 +9,24 @@
 #  whatsapp_username :text
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
+#  account_id        :uuid             not null
 #  contact_id        :uuid
 #  inbox_id          :uuid
 #  source_id         :string           not null
 #
 # Indexes
 #
+#  index_contact_inboxes_on_account_id              (account_id)
 #  index_contact_inboxes_on_contact_id              (contact_id)
 #  index_contact_inboxes_on_inbox_id                (inbox_id)
 #  index_contact_inboxes_on_inbox_id_and_bsuid      (inbox_id,bsuid) UNIQUE WHERE (bsuid IS NOT NULL)
 #  index_contact_inboxes_on_inbox_id_and_source_id  (inbox_id,source_id) UNIQUE
 #  index_contact_inboxes_on_pubsub_token            (pubsub_token) UNIQUE
 #  index_contact_inboxes_on_source_id               (source_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class ContactInbox < ApplicationRecord
   include Pubsubable

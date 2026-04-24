@@ -7,11 +7,17 @@
 #  line_channel_token  :string           not null
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
+#  account_id          :uuid             not null
 #  line_channel_id     :string           not null
 #
 # Indexes
 #
+#  index_channel_line_on_account_id       (account_id)
 #  index_channel_line_on_line_channel_id  (line_channel_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::Line < ApplicationRecord

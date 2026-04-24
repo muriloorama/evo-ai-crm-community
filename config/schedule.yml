@@ -1,23 +1,40 @@
-# https://github.com/ondrejbartas/sidekiq-cron
+# https://github.com/sidekiq-cron/sidekiq-cron
 # use https://crontab.guru/ to validate
 # validations for this file exist in /spec/configs/schedule_spec.rb
+#
+# All entries here use ApplicationJob (ActiveJob) descendants. sidekiq-cron
+# 2.x requires `active_job: true` so it wraps the job in
+# ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper instead of trying to
+# call `jid=` directly on the job instance (which crashes).
 
 # # executed At every 5th minute..
 trigger_scheduled_items_job:
   cron: '*/5 * * * *'
   class: 'TriggerScheduledItemsJob'
   queue: scheduled_jobs
+  active_job: true
 
 # executed every minute to process scheduled actions
 scheduled_actions_processor_job:
   cron: '* * * * *'
   class: 'ScheduledActionsProcessorJob'
   queue: scheduled_jobs
+  active_job: true
+
+# executed every minute to fan out due follow-up attempts
+follow_ups_scheduler_job:
+  cron: '* * * * *'
+  class: 'FollowUps::SchedulerJob'
+  queue: scheduled_jobs
+  active_job: true
+  description: 'Fan out follow-up attempts whose next_attempt_at has elapsed'
+
 # executed At every 5th minute to check for overdue pipeline tasks
 check_overdue_tasks_job:
   cron: '*/5 * * * *'
   class: 'Pipelines::CheckOverdueTasksJob'
   queue: scheduled_jobs
+  active_job: true
   description: 'Check and notify overdue pipeline tasks'
 
 # executed At every 15th minute to send reminders for tasks due soon
@@ -25,6 +42,7 @@ task_due_soon_reminder_job:
   cron: '*/15 * * * *'
   class: 'Pipelines::TaskDueSoonReminderJob'
   queue: scheduled_jobs
+  active_job: true
   description: 'Send reminders for tasks due soon (within 1 hour)'
 
 # executed At every 2 minutes for better performance with high volume inboxes
@@ -32,13 +50,23 @@ trigger_imap_email_inboxes_job:
   cron: '*/2 * * * *'
   class: 'Inboxes::FetchImapEmailInboxesJob'
   queue: scheduled_jobs
+  active_job: true
 
 # executed At every minute to check for inactive conversations and trigger actions
 agent_bots_inactivity_check_scheduler_job:
   cron: '* * * * *'
   class: 'AgentBots::InactivityCheckSchedulerJob'
   queue: scheduled_jobs
+  active_job: true
   description: 'Check inactive conversations and process inactivity actions'
+
+# Dispatches queued ScheduledMessages whose scheduled_at has elapsed.
+scheduled_messages_dispatch_job:
+  cron: '* * * * *'
+  class: 'ScheduledMessages::DispatchJob'
+  queue: scheduled_jobs
+  active_job: true
+  description: 'Turn due scheduled messages into outgoing messages'
 
 # executed daily at 2230 UTC
 # which is our lowest traffic time
@@ -46,6 +74,7 @@ remove_stale_contact_inboxes_job.rb:
   cron: '30 22 * * *'
   class: 'Internal::RemoveStaleContactInboxesJob'
   queue: scheduled_jobs
+  active_job: true
 
 # executed daily at 2230 UTC
 # which is our lowest traffic time
@@ -53,6 +82,7 @@ remove_stale_redis_keys_job.rb:
   cron: '30 22 * * *'
   class: 'Internal::RemoveStaleRedisKeysJob'
   queue: scheduled_jobs
+  active_job: true
 
 #executed daily at 0430 UTC
 # which will be IST 10:00 AM
@@ -60,6 +90,7 @@ process_stale_contacts_job:
   cron: '30 04 * * *'
   class: 'Internal::ProcessStaleContactsJob'
   queue: housekeeping
+  active_job: true
 
 # executed daily at 0100 UTC
 # to delete accounts marked for deletion
@@ -67,6 +98,15 @@ delete_accounts_job:
   cron: '0 1 * * *'
   class: 'Internal::DeleteAccountsJob'
   queue: scheduled_jobs
+  active_job: true
+
+# executed daily at 0500 UTC to pull Meta Ads spend into campaign_investments
+meta_ads_sync_job:
+  cron: '0 5 * * *'
+  class: 'MetaAds::SyncJob'
+  queue: scheduled_jobs
+  active_job: true
+  description: 'Sync Meta Ads campaign spend into campaign_investments'
 
 # executed daily at 0300 UTC
 # to renew Gmail watch subscriptions (required every 7 days, running daily for safety)
@@ -74,3 +114,4 @@ gmail_renew_watch_job:
   cron: '0 3 * * *'
   class: 'Gmail::RenewWatchJob'
   queue: low
+  active_job: true

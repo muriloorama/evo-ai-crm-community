@@ -8,6 +8,20 @@ if Rails.env.production?
   Redis::Alfred.set(Redis::Alfred::EVOLUTION_INSTALLATION_ONBOARDING, true)
 end
 
+# All data tables now enforce `account_id NOT NULL` via Accountable. Look up the
+# default Account (seeded by the Auth service) and run the rest of this file
+# with Current.account_id set so records get scoped correctly.
+default_account_id = ActiveRecord::Base.connection.select_value(
+  "SELECT id FROM accounts ORDER BY created_at LIMIT 1"
+)
+
+if default_account_id.blank?
+  Rails.logger.warn "⚠️  No Account found. Run the Auth service seed first."
+  exit 0
+end
+
+Accountable.with_account(default_account_id) do
+
 ## Seeds for Local Development
 unless Rails.env.production?
 
@@ -98,3 +112,5 @@ unless Rails.env.production?
     canned_response.content = 'Hello welcome to Evolution Community.'
   end
 end
+
+end # Accountable.with_account

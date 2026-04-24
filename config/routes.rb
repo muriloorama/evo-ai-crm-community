@@ -82,6 +82,7 @@ Rails.application.routes.draw do
 
       resource :dashboard, only: [], controller: 'dashboard' do
         get :customer
+        get :contacts_by_location
       end
 
       resources :inboxes, only: [:index, :show, :create, :update, :destroy], controller: 'inboxes' do
@@ -107,9 +108,12 @@ Rails.application.routes.draw do
           post :filter
           get :available_for_pipeline
         end
+        resources :scheduled_messages, only: [:index, :create, :destroy], controller: 'conversations/scheduled_messages'
+
         resources :messages, only: [:index, :create, :destroy, :update], controller: 'conversations/messages' do
           member do
             post :retry
+            post :react
           end
         end
         resources :assignments, only: [:create], controller: 'conversations/assignments'
@@ -131,6 +135,7 @@ Rails.application.routes.draw do
           post :unpin
           post :archive
           post :unarchive
+          post :toggle_group_lock
           get :attachments
           get :inbox_assistant
         end
@@ -231,6 +236,9 @@ Rails.application.routes.draw do
         post :clone, on: :member
       end
 
+      resources :follow_up_rules, only: %i[index show create update destroy], controller: 'follow_up_rules'
+      resources :follow_up_executions, only: %i[index], controller: 'follow_up_executions'
+
       resources :macros, only: [:index, :create, :show, :update, :destroy], controller: 'macros' do
         post :execute, on: :member
       end
@@ -269,6 +277,7 @@ Rails.application.routes.draw do
           post 'whatsapp/evolution', to: 'webhooks/whatsapp#process_payload'
           post 'whatsapp/evolution_go', to: 'webhooks/whatsapp#process_evolution_go_payload'
           post 'whatsapp/zapi', to: 'webhooks/whatsapp#process_payload'
+          post 'uazapi/:webhook_token', to: 'webhooks/uazapi#process_payload'
 
           # Telegram webhooks
           post 'telegram/:bot_token', to: 'webhooks/telegram#process_payload'
@@ -398,6 +407,17 @@ Rails.application.routes.draw do
         delete 'profile/:id/picture', to: 'evolution_go/profile#remove_picture', as: :profile_remove_picture
       end
 
+      scope path: 'uazapi', as: 'uazapi' do
+        resource :authorization, only: [:create], controller: 'uazapi/authorizations'
+        resources :qrcodes, only: [:show, :create], controller: 'uazapi/qrcodes'
+        resources :instances, only: [:index], controller: 'uazapi/instances' do
+          member do
+            delete :logout
+          end
+        end
+        resources :settings, only: %i[show update], controller: 'uazapi/settings'
+      end
+
       scope path: 'zapi', as: 'zapi' do
         resources :qrcodes, only: [:show, :create], controller: 'zapi/qrcodes' do
           collection do
@@ -490,7 +510,25 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :upload, only: [:create], controller: 'uploads'
+      resources :upload, only: [:create], controller: 'upload'
+
+      resources :validation_checklist, only: [] do
+        collection do
+          get  :index
+          post :toggle
+          post :reset
+        end
+      end
+
+      resources :account_api_keys, only: [:index, :create, :destroy]
+
+      resources :broadcast_campaigns do
+        member do
+          post :add_recipients
+          post :enqueue
+          post :cancel
+        end
+      end
 
       resources :pipelines, controller: 'pipelines' do
         collection do
@@ -611,6 +649,20 @@ Rails.application.routes.draw do
           get :conversations
           get :conversation_traffic
           get :bot_metrics
+          get :tracking_summary
+        end
+      end
+
+      resources :campaign_investments, only: [:index, :create, :update, :destroy],
+                controller: 'campaign_investments'
+
+      resources :meta_ad_accounts, only: [:index, :show, :create, :update, :destroy],
+                controller: 'meta_ad_accounts' do
+        collection do
+          post :validate_token
+        end
+        member do
+          post :sync_now
         end
       end
       resources :live_reports, only: [], controller: 'live_reports' do

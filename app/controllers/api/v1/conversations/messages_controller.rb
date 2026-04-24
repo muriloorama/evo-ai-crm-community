@@ -47,6 +47,54 @@ class Api::V1::Conversations::MessagesController < Api::V1::Conversations::BaseC
     )
   end
 
+  def react
+    @message = message
+    emoji = params[:emoji].to_s
+    inbox = @conversation.inbox
+
+    unless inbox.channel.respond_to?(:send_reaction)
+      return error_response(
+        ApiErrorCodes::OPERATION_NOT_ALLOWED,
+        'This channel does not support reactions',
+        status: :unprocessable_entity
+      )
+    end
+
+    target_source_id = @message.source_id
+    return error_response(
+      ApiErrorCodes::VALIDATION_ERROR,
+      'Original message has no external id yet',
+      status: :unprocessable_entity
+    ) if target_source_id.blank?
+
+    # Persist the reaction as an outgoing Message. The after_create callback
+    # enqueues SendReplyJob → SendOnWhatsappService, which detects
+    # `is_reaction` and calls channel.send_reaction (type=reaction on the
+    # Meta API) instead of the plain text flow.
+    reaction_message = @conversation.messages.create!(
+      content: emoji,
+      inbox_id: inbox.id,
+      message_type: :outgoing,
+      sender: Current.user,
+      content_attributes: {
+        in_reply_to_external_id: target_source_id,
+        is_reaction: true
+      }
+    )
+
+    success_response(
+      data: MessageSerializer.serialize(reaction_message, include_attachments: false, include_sender: true),
+      message: 'Reaction sent successfully'
+    )
+  rescue StandardError => e
+    error_response(
+      ApiErrorCodes::VALIDATION_ERROR,
+      'Failed to send reaction',
+      details: e.message,
+      status: :unprocessable_entity
+    )
+  end
+
   def destroy
     @message = message
     @message.update!(content_attributes: (@message.content_attributes || {}).merge(deleted: true))

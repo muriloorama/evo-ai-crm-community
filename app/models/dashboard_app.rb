@@ -10,11 +10,17 @@
 #  title            :string           not null
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  account_id       :uuid             not null
 #  user_id          :uuid
 #
 # Indexes
 #
-#  index_dashboard_apps_on_user_id  (user_id)
+#  index_dashboard_apps_on_account_id  (account_id)
+#  index_dashboard_apps_on_user_id     (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class DashboardApp < ApplicationRecord
   belongs_to :user

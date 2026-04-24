@@ -21,7 +21,9 @@ module Webhooks
       return
     end
 
-    process_event_params(channel, params)
+    Accountable.with_account(channel.account_id) do
+      process_event_params(channel, params)
+    end
   end
 
   private

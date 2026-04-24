@@ -23,8 +23,12 @@ class Api::BaseController < ApplicationController
     Current.evo_auth_validation_cache ||= {}
     Current.evo_permission_cache ||= {}
 
-    # Priority order: Service Token -> Bearer Token -> API Access Token
-    if service_token_present?
+    # Priority order: Account API Key -> Service Token -> Bearer Token -> API Access Token
+    # Account API keys let external integrations authenticate without going
+    # through evo-auth — each key is account-scoped and revocable from the UI.
+    if account_api_key_present?
+      authenticate_with_account_api_key!
+    elsif service_token_present?
       authenticate_service_token!
     elsif bearer_token_present?
       # Extract Bearer token and pass to EvoAuth
@@ -49,6 +53,36 @@ class Api::BaseController < ApplicationController
 
   def bearer_token_present?
     request.headers['Authorization']&.start_with?('Bearer ')
+  end
+
+  # X-Api-Key header authenticates requests as the account that owns the key.
+  # The user acting on behalf of the key is the creator (used for auditing
+  # and sender attribution when a message is created).
+  def account_api_key_present?
+    extract_api_key_header.present?
+  end
+
+  def extract_api_key_header
+    request.headers['X-Api-Key'].presence ||
+      request.headers['x-api-key'].presence ||
+      request.headers['HTTP_X_API_KEY'].presence
+  end
+
+  def authenticate_with_account_api_key!
+    key_value = extract_api_key_header
+    api_key = AccountApiKey.active.find_by(token: key_value)
+
+    unless api_key
+      return render_unauthorized('Invalid or revoked API key')
+    end
+
+    # Touch usage timestamp but don't block the request on a DB error.
+    api_key.update_columns(last_used_at: Time.current) rescue nil
+
+    Current.user = api_key.created_by
+    @current_user = api_key.created_by
+    Current.account_id = api_key.account_id
+    Current.authentication_method = 'account_api_key'
   end
 
   def api_access_token_present?

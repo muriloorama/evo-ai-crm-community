@@ -41,9 +41,11 @@
 #  unconfirmed_email      :string
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  active_account_id      :uuid
 #
 # Indexes
 #
+#  index_users_on_active_account_id       (active_account_id)
 #  index_users_on_email                   (email)
 #  index_users_on_email_otp_sent_at       (email_otp_sent_at)
 #  index_users_on_mfa_method              (mfa_method)
@@ -51,6 +53,10 @@
 #  index_users_on_pubsub_token            (pubsub_token) UNIQUE
 #  index_users_on_reset_password_token    (reset_password_token) UNIQUE
 #  index_users_on_uid_and_provider        (uid,provider) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (active_account_id => accounts.id) ON DELETE => nullify
 #
 class User < ApplicationRecord
   # Evolution Reference Model - managed by evo-auth-service

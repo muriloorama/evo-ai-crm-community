@@ -93,7 +93,9 @@ class Webhooks::WhatsappController < ActionController::API
   end
 
   def find_whatsapp_channel_by_phone
-    Channel::Whatsapp.find_by(phone_number: params[:phone_number])
+    phone = params[:phone_number].to_s
+    Channel::Whatsapp.find_by(phone_number: phone) ||
+      Channel::Whatsapp.find_by(phone_number: "+#{phone.delete_prefix('+')}")
   end
 
   def extract_webhook_token(channel)
@@ -103,16 +105,16 @@ class Webhooks::WhatsappController < ActionController::API
   end
 
   def log_global_token_check(token, global_verify_token)
-    token.present? ? '[PRESENT]' : '[MISSING]'
-    global_verify_token.present? ? '[PRESENT]' : '[MISSING]'
+    token_status = token.present? ? '[PRESENT]' : '[MISSING]'
+    global_status = global_verify_token.present? ? '[PRESENT]' : '[MISSING]'
 
     Rails.logger.info 'Global WhatsApp webhook verify token check: ' \
                       "provided=#{token_status}, global=#{global_status}"
   end
 
   def log_phone_specific_token_check(token, whatsapp_webhook_verify_token)
-    token.present? ? '[PRESENT]' : '[MISSING]'
-    whatsapp_webhook_verify_token.present? ? '[PRESENT]' : '[MISSING]'
+    token_status = token.present? ? '[PRESENT]' : '[MISSING]'
+    channel_status = whatsapp_webhook_verify_token.present? ? '[PRESENT]' : '[MISSING]'
 
     Rails.logger.info 'Phone-specific WhatsApp webhook verify token check ' \
                       "for #{params[:phone_number]}: provided=#{token_status}, " \

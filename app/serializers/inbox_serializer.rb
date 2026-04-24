@@ -46,6 +46,23 @@ module InboxSerializer
       # Provider (used by WhatsApp and other channels)
       result['provider'] = inbox.channel.provider if inbox.channel.respond_to?(:provider)
 
+      # Phone number lives on the channel, not the inbox, but every screen
+      # that lists inboxes (Canais page, sidebar, dropdowns) wants to show
+      # it — expose it at the top level.
+      #
+      # Uazapi channels are created with a placeholder like
+      # "+uazapi-mo4qnih53ra1c4" until the QR-code pairing completes. Once
+      # the real phone owner is known (via webhook or /instance/status), we
+      # cache it in provider_config['owner_phone_number'] and prefer it
+      # here so the UI shows the actual connected number.
+      raw_phone = inbox.channel.try(:phone_number)
+      owner = inbox.channel.try(:provider_config)&.dig('owner_phone_number')
+      result['phone_number'] = if raw_phone.to_s.start_with?('+uazapi-') && owner.present?
+                                 owner
+                               else
+                                 raw_phone
+                               end
+
       # WhatsApp-specific data required by channel settings screens
       if inbox.whatsapp?
         result['provider_config'] = inbox.channel.try(:provider_config)

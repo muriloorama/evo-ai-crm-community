@@ -15,15 +15,18 @@
 #  payload               :jsonb            not null
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
+#  account_id            :uuid             not null
 #
 # Indexes
 #
 #  idx_templates_default                            (is_default)
 #  idx_templates_public                             (is_public)
+#  index_scheduled_action_templates_on_account_id   (account_id)
 #  index_scheduled_action_templates_on_action_type  (action_type)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #  fk_rails_...  (created_by => users.id) ON DELETE => cascade
 #
 

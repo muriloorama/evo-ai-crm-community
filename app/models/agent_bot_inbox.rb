@@ -18,12 +18,14 @@
 #  status                           :integer          default("active")
 #  created_at                       :datetime         not null
 #  updated_at                       :datetime         not null
+#  account_id                       :uuid             not null
 #  agent_bot_id                     :uuid
 #  facebook_comment_agent_bot_id    :uuid
 #  inbox_id                         :uuid
 #
 # Indexes
 #
+#  index_agent_bot_inboxes_on_account_id                       (account_id)
 #  index_agent_bot_inboxes_on_allowed_conversation_statuses    (allowed_conversation_statuses) USING gin
 #  index_agent_bot_inboxes_on_allowed_label_ids                (allowed_label_ids) USING gin
 #  index_agent_bot_inboxes_on_auto_reject_explicit_words       (auto_reject_explicit_words)
@@ -37,6 +39,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #  fk_rails_...  (facebook_comment_agent_bot_id => agent_bots.id) ON DELETE => nullify
 #
 class AgentBotInbox < ApplicationRecord

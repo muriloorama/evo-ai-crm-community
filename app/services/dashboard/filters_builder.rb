@@ -34,6 +34,7 @@ module Dashboard
         team_id: team_id,
         inbox_id: inbox_id,
         user_id: user_id,
+        contact_type: contact_type,
         since: time_range.begin.to_i,
         until: time_range.end.to_i
       }.compact
@@ -46,6 +47,7 @@ module Dashboard
       scope = scope.where(inbox_id: inbox_id) if inbox_id.present?
       scope = scope.where(assignee_id: user_id) if user_id.present?
       scope = scope.joins(:pipeline_items).where(pipeline_items: { pipeline_id: pipeline_id }).distinct if pipeline_id.present?
+      scope = scope.joins(:contact).where(contacts: { contact_type: Contact.contact_types[contact_type] }) if contact_type.present?
       scope
     end
 
@@ -154,6 +156,17 @@ module Dashboard
 
     def user_id
       params[:user_id].presence
+    end
+
+    # Limits dashboard aggregations to contacts of a specific lifecycle type
+    # ("visitor" / "lead" / "customer"). Used by the "Clientes convertidos"
+    # toggle to focus the dashboard on customers only.
+    def contact_type
+      value = params[:contact_type].to_s.downcase.presence
+      return if value.blank?
+      return unless Contact.contact_types.key?(value)
+
+      value
     end
 
     def parse_datetime(value)

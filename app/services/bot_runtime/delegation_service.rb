@@ -24,13 +24,17 @@ module BotRuntime
         conversation_id: @conversation.display_id,
         contact_id: stable_contact_id,
         message_id: @message.id.to_s,
-        message_content: @message.content.to_s,
+        message_content: enriched_message_content,
         api_key: @agent_bot.api_key.to_s,
         outgoing_url: @agent_bot.outgoing_url.to_s,
         bot_config: build_bot_config,
         postback_url: build_postback_url,
         metadata: build_metadata
       }
+    end
+
+    def enriched_message_content
+      BotRuntime::MessageContentBuilder.build(@message)
     end
 
     def build_bot_config

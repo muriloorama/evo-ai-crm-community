@@ -20,26 +20,19 @@ class Api::V1::Conversations::AssignmentsController < Api::V1::Conversations::Ba
     @agent = User.find_by(id: params[:assignee_id])
     @conversation.assignee = @agent
     @conversation.save!
-    
-    if @agent.nil?
-      success_response(
-        data: {},
-        message: 'Agent assignment removed successfully'
-      )
-    else
-      success_response(
-        data: { assignee: UserSerializer.serialize(@agent) },
-        message: 'Agent assigned successfully'
-      )
-    end
+
+    success_response(
+      data: ConversationSerializer.serialize(@conversation, include_messages: false),
+      message: @agent.nil? ? 'Agent assignment removed successfully' : 'Agent assigned successfully'
+    )
   end
 
   def set_team
     @team = Team.find_by(id: params[:team_id])
     @conversation.update!(team: @team)
-    
+
     success_response(
-      data: { team: @team ? TeamSerializer.serialize(@team) : nil },
+      data: ConversationSerializer.serialize(@conversation, include_messages: false),
       message: 'Team assigned successfully'
     )
   end

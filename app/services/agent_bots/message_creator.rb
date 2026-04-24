@@ -18,7 +18,12 @@ class AgentBots::MessageCreator
     end
 
     Rails.logger.info "[AgentBot HTTP] Creating bot reply in conversation #{conversation.id}"
-    create_message_with_fallback(content, conversation)
+    # Bot replies are created from Sidekiq jobs and webhook callbacks (no
+    # authenticated user in Current), so account_id wouldn't get auto-filled
+    # by the Accountable callback. Scoping here means every caller is safe.
+    Accountable.with_account(conversation.account_id) do
+      create_message_with_fallback(content, conversation)
+    end
   end
 
   private

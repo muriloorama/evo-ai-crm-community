@@ -6,17 +6,20 @@
 #  deleted_at :datetime
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  account_id :uuid             not null
 #  company_id :uuid             not null
 #  contact_id :uuid             not null
 #
 # Indexes
 #
+#  index_contact_companies_on_account_id                 (account_id)
 #  index_contact_companies_on_company_id_and_contact_id  (company_id,contact_id)
 #  index_contact_companies_on_contact_id_and_company_id  (contact_id,company_id) UNIQUE
 #  index_contact_companies_on_deleted_at                 (deleted_at)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #  fk_rails_...  (company_id => contacts.id)
 #  fk_rails_...  (contact_id => contacts.id)
 #

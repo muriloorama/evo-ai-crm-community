@@ -4,9 +4,9 @@ class AgentBots::DeleteSessionJob < ApplicationJob
   def perform(agent_bot_id, session_id, api_key, outgoing_url)
     Rails.logger.info "[DeleteSessionJob] Starting session deletion for session_id: #{session_id}, agent_bot_id: #{agent_bot_id}"
 
-    # Extract base processor URL (remove /message/send if present)
-    processor_url = outgoing_url.gsub(%r{/message/send$}, '')
-    session_url = "#{processor_url}/sessions/#{session_id}"
+    # Build processor API base (strip /a2a/<agent_id> or /message/send from outgoing_url)
+    api_base = outgoing_url.gsub(%r{/message/send$}, '').gsub(%r{/a2a/[^/?]+/?$}, '')
+    session_url = "#{api_base}/sessions/sync/#{session_id}"
 
     Rails.logger.debug "[DeleteSessionJob] Deleting session at URL: #{session_url}"
 
@@ -20,8 +20,8 @@ class AgentBots::DeleteSessionJob < ApplicationJob
     request['Content-Type'] = 'application/json'
 
     if api_key.present?
-      request['Authorization'] = "Bearer #{api_key}"
-      Rails.logger.debug "[DeleteSessionJob] Using API Key authentication"
+      request['x-api-key'] = api_key
+      Rails.logger.debug "[DeleteSessionJob] Using x-api-key authentication"
     else
       Rails.logger.warn "[DeleteSessionJob] No API key provided for session deletion"
     end

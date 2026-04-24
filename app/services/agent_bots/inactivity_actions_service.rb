@@ -14,7 +14,7 @@ class AgentBots::InactivityActionsService
     return if inactivity_actions.empty?
 
     time_inactive_minutes = calculate_inactive_time_minutes
-    last_incoming = @conversation.messages.incoming.order(created_at: :desc).first
+    last_incoming = @conversation.messages.incoming.reorder(created_at: :desc).first
     Rails.logger.info "[InactivityActions] Time inactive: #{time_inactive_minutes} minutes (since last incoming message at #{last_incoming&.created_at})"
 
     action_to_execute = find_action_to_execute(inactivity_actions, time_inactive_minutes)
@@ -32,9 +32,17 @@ class AgentBots::InactivityActionsService
     # 3. Tem bot configurado
     # 4. Bot tem ações de inatividade configuradas
     # 5. Não tem agente humano assignado (opcional - pode ajustar conforme necessário)
+    # 6. Está dentro do horário permitido de inatividade (se configurado)
 
     unless @conversation.open? || @conversation.pending?
       Rails.logger.debug "[InactivityActions] Skipping - conversation not open/pending (status: #{@conversation.status})"
+      return false
+    end
+
+    # Respect the bot's inactivity schedule — e.g. don't send "ainda está aí?"
+    # messages at 3am if the operator only wants them during business hours.
+    unless AgentBots::ScheduleChecker.within_window?(@agent_bot, 'inactivity_hours')
+      Rails.logger.debug "[InactivityActions] Skipping - outside configured inactivity hours for bot #{@agent_bot&.id}"
       return false
     end
 
@@ -73,31 +81,40 @@ class AgentBots::InactivityActionsService
   def calculate_inactive_time_minutes
     # Calcula inatividade baseado na última mensagem INCOMING (do cliente)
     # Ignora mensagens do bot para evitar resetar o timer de inatividade
-    last_incoming_message = @conversation.messages.incoming.order(created_at: :desc).first
+    # reorder() é obrigatório: Message tem default_scope ASC e order() apenas anexa
+    last_incoming_message = @conversation.messages.incoming.reorder(created_at: :desc).first
     last_activity = last_incoming_message&.created_at || @conversation.created_at
 
     time_diff_seconds = Time.current - last_activity
     (time_diff_seconds / 60.0).floor
   end
 
+  MIN_COOLDOWN_MINUTES = 30
+
   def find_action_to_execute(actions, time_inactive_minutes)
-    # Pega o último índice de ação executada
     last_executed_index = InactivityActionExecution.last_action_index_for(@conversation.id)
+    last_execution = last_executed_index >= 0 ? InactivityActionExecution.for_conversation(@conversation.id).where(action_index: last_executed_index).first : nil
 
     Rails.logger.info "[InactivityActions] Last executed action index: #{last_executed_index}"
 
-    # Procura a PRÓXIMA ação que deve ser executada (não todas de uma vez)
     actions.each_with_index do |action, index|
       action_time = action['minutes'].to_i
 
-      # Pula ações já executadas
       next if index <= last_executed_index
+      next if time_inactive_minutes < action_time
 
-      # Se o tempo de inatividade já passou do tempo da ação
-      if time_inactive_minutes >= action_time
-        Rails.logger.info "[InactivityActions] Found action to execute: index #{index}, type: #{action['action']}, time: #{action_time} min"
-        return { config: action, index: index }
+      if last_execution
+        prev_action_time = actions[last_executed_index]['minutes'].to_i
+        cooldown_minutes = [action_time - prev_action_time, MIN_COOLDOWN_MINUTES].max
+        elapsed_since_last = (Time.current - last_execution.executed_at) / 60.0
+        if elapsed_since_last < cooldown_minutes
+          Rails.logger.info "[InactivityActions] Skipping action #{index}: cooldown not met (#{elapsed_since_last.round(1)}/#{cooldown_minutes} min since last execution)"
+          return nil
+        end
       end
+
+      Rails.logger.info "[InactivityActions] Found action to execute: index #{index}, type: #{action['action']}, time: #{action_time} min"
+      return { config: action, index: index }
     end
 
     Rails.logger.debug "[InactivityActions] No action to execute at this time"

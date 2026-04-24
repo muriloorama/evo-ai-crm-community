@@ -344,7 +344,21 @@ class Api::V1::ContactsController < Api::V1::BaseController
     @listable_contacts = @listable_contacts.for_company(params[:company_id]) if params[:company_id].present?
 
     @listable_contacts = @listable_contacts.tagged_with(params[:labels], any: true) if params[:labels].present?
+
+    # Non-admin agents are scoped to contacts that have at least one
+    # contact_inbox in their assigned inboxes — mirrors the conversation
+    # finder's permission behaviour so an agent never sees leads from
+    # inboxes they aren't a member of.
+    @listable_contacts = scope_contacts_for_current_user(@listable_contacts)
     @listable_contacts
+  end
+
+  def scope_contacts_for_current_user(scope)
+    user = Current.user
+    return scope if user.nil? || user.administrator?
+
+    inbox_ids = user.inboxes.pluck(:id)
+    scope.joins(:contact_inboxes).where(contact_inboxes: { inbox_id: inbox_ids }).distinct
   end
 
   # TODO: Move this to a finder class

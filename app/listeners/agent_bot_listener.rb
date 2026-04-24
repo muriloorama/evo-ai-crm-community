@@ -46,6 +46,12 @@ class AgentBotListener < BaseListener
     # Skip moderation for outgoing messages (messages sent by the bot/page)
     return unless message.incoming?
 
+    # #reset — wipes bot memory (session + history cutoff) and skips dispatch for this msg.
+    if bot_reset_command?(message)
+      perform_bot_reset(message, conversation, inbox)
+      return
+    end
+
     # Reset inactivity actions when customer responds
     reset_inactivity_actions(conversation)
 
@@ -181,6 +187,14 @@ class AgentBotListener < BaseListener
     method_name = __method__.to_s
     agent_bot = get_agent_bot_for_message(inbox, message)
     return unless agent_bot
+
+    # Skip AI reply if the bot is configured with active hours and we're
+    # outside that window. The customer still sees the conversation in the
+    # CRM — only the automatic AI response is suppressed until hours resume.
+    unless AgentBots::ScheduleChecker.within_window?(agent_bot, 'ai_active_hours')
+      Rails.logger.info "[AgentBot Listener] Skipping AI reply — outside configured active hours for bot #{agent_bot.id}"
+      return
+    end
 
     process_message_event(method_name, agent_bot, message, event)
   end
@@ -552,5 +566,37 @@ class AgentBotListener < BaseListener
   rescue StandardError => e
     Rails.logger.error "[AgentBot Listener] Error resetting inactivity actions: #{e.message}"
     # Don't propagate error - this shouldn't block message processing
+  end
+
+  # Recognizes a "#reset" command sent by the contact to wipe the bot's memory
+  # for the current conversation. Keep strict: only an isolated "#reset" token.
+  def bot_reset_command?(message)
+    message.content.to_s.strip.casecmp('#reset').zero?
+  end
+
+  # Performs the bot memory reset:
+  #   1. Marks `bot_reset_at` on the conversation so future history prefixes
+  #      built by BotRuntime::MessageContentBuilder exclude prior messages.
+  #   2. Deletes the LangGraph session on the processor, if we can resolve the
+  #      agent_id from the bot's outgoing_url.
+  # The `#reset` message itself is neither dispatched nor kept in the history
+  # window (its created_at == bot_reset_at, and the builder filters `> reset_at`).
+  def perform_bot_reset(message, conversation, inbox)
+    attrs = conversation.additional_attributes || {}
+    attrs['bot_reset_at'] = message.created_at.iso8601
+    conversation.update!(additional_attributes: attrs)
+    Rails.logger.info "[AgentBot Listener] #reset marked on conversation #{conversation.id} at #{attrs['bot_reset_at']}"
+
+    agent_bot = inbox.agent_bot
+    return unless agent_bot&.outgoing_url.present?
+
+    agent_id = agent_bot.outgoing_url.match(%r{/a2a/([^/?]+)})&.captures&.first
+    return unless agent_id
+
+    session_id = "#{conversation.display_id}_#{agent_id}"
+    Rails.logger.info "[AgentBot Listener] Dispatching DeleteSessionJob for session #{session_id}"
+    AgentBots::DeleteSessionJob.perform_later(agent_bot.id, session_id, agent_bot.api_key, agent_bot.outgoing_url)
+  rescue StandardError => e
+    Rails.logger.error "[AgentBot Listener] #reset handler error: #{e.class}: #{e.message}"
   end
 end

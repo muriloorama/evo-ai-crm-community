@@ -7,10 +7,16 @@
 #  bot_token  :string           not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  account_id :uuid             not null
 #
 # Indexes
 #
-#  index_channel_telegram_on_bot_token  (bot_token) UNIQUE
+#  index_channel_telegram_on_account_id  (account_id)
+#  index_channel_telegram_on_bot_token   (bot_token) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::Telegram < ApplicationRecord

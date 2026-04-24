@@ -26,11 +26,17 @@
 #  smtp_port                 :integer          default(0)
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
+#  account_id                :uuid             not null
 #
 # Indexes
 #
+#  index_channel_email_on_account_id        (account_id)
 #  index_channel_email_on_email             (email) UNIQUE
 #  index_channel_email_on_forward_to_email  (forward_to_email) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::Email < ApplicationRecord

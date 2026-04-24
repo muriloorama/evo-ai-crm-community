@@ -85,7 +85,9 @@ class Webhooks::InstagramEventsJob < MutexApplicationJob
       if event_name_result
         Rails.logger.info("Instagram Events Job: Processing event: #{event_name_result}")
         begin
-          send(event_name_result, messaging_indifferent, channel)
+          Accountable.with_account(channel.account_id) do
+            send(event_name_result, messaging_indifferent, channel)
+          end
           Rails.logger.info("Instagram Events Job: Successfully processed event: #{event_name_result}")
         rescue StandardError => e
           Rails.logger.error("Instagram Events Job: Error processing event #{event_name_result}: #{e.message}")

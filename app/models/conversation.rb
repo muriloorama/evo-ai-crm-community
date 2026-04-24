@@ -19,6 +19,7 @@
 #  waiting_since          :datetime
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  account_id             :uuid             not null
 #  assignee_id            :uuid
 #  contact_id             :uuid
 #  contact_inbox_id       :uuid
@@ -29,11 +30,12 @@
 # Indexes
 #
 #  conv_inbid_stat_asgnid_idx                            (inbox_id,status,assignee_id)
+#  index_conversations_on_account_id                     (account_id)
+#  index_conversations_on_account_id_and_display_id      (account_id,display_id) UNIQUE
 #  index_conversations_on_assignee_id                    (assignee_id)
 #  index_conversations_on_assignee_status_last_activity  (assignee_id,status,last_activity_at DESC NULLS LAST)
 #  index_conversations_on_contact_id                     (contact_id)
 #  index_conversations_on_contact_inbox_id               (contact_inbox_id)
-#  index_conversations_on_display_id                     (display_id) UNIQUE
 #  index_conversations_on_first_reply_created_at         (first_reply_created_at)
 #  index_conversations_on_inbox_id                       (inbox_id)
 #  index_conversations_on_inbox_status_last_activity     (inbox_id,status,last_activity_at DESC NULLS LAST)
@@ -44,6 +46,10 @@
 #  index_conversations_on_team_id                        (team_id)
 #  index_conversations_on_uuid                           (uuid) UNIQUE
 #  index_conversations_on_waiting_since                  (waiting_since)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Conversation < ApplicationRecord
   include Labelable
@@ -56,6 +62,8 @@ class Conversation < ApplicationRecord
   include PushDataHelper
   include ConversationMuteHelpers
   include Wisper::Publisher
+
+  has_many :follow_up_executions, dependent: :destroy
 
   validates :inbox_id, presence: true
   validates :contact_id, presence: true
@@ -102,6 +110,7 @@ class Conversation < ApplicationRecord
   has_many :mentions, dependent: :destroy_async
   # Interceptar associação messages para usar ScyllaDB quando habilitado
   has_many :messages, dependent: :destroy_async
+  has_many :scheduled_messages, dependent: :destroy
   has_many :facebook_comment_moderations, dependent: :destroy_async, autosave: true
   has_one :csat_survey_response, dependent: :destroy_async
   has_many :conversation_participants, dependent: :destroy_async
@@ -225,9 +234,13 @@ class Conversation < ApplicationRecord
   def ensure_display_id
     return if display_id.present?
 
-    # Use a globally sequential display_id
-    # This is thread-safe because we're using a database transaction
-    max_display_id = self.class.maximum(:display_id) || 0
+    # display_id is Chatwoot-style: sequential per account starting at 1.
+    # We scope by account_id so each workspace counts independently — account
+    # #7 sees conversation #1, #2, ... while account #8 has its own sequence.
+    # The unique composite index (account_id, display_id) enforces correctness
+    # if two concurrent transactions race; this computation is best-effort.
+    scope = self.class.where(account_id: account_id)
+    max_display_id = scope.maximum(:display_id) || 0
     self.display_id = max_display_id + 1
   end
 

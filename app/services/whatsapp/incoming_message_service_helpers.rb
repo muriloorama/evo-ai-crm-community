@@ -45,7 +45,9 @@ module Whatsapp::IncomingMessageServiceHelpers
   end
 
   def unprocessable_message_type?(message_type)
-    %w[reaction ephemeral unsupported request_welcome].include?(message_type)
+    # Reactions are no longer dropped here — they're surfaced in the UI as
+    # a small emoji under the original message (same behaviour Baileys has).
+    %w[ephemeral unsupported request_welcome].include?(message_type)
   end
 
   def brazil_phone_number?(phone_number)

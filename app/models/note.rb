@@ -6,13 +6,19 @@
 #  content    :text             not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  account_id :uuid             not null
 #  contact_id :uuid             not null
 #  user_id    :uuid
 #
 # Indexes
 #
+#  index_notes_on_account_id  (account_id)
 #  index_notes_on_contact_id  (contact_id)
 #  index_notes_on_user_id     (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Note < ApplicationRecord
   validates :content, presence: true

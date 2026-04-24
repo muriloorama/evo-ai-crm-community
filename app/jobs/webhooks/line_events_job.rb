@@ -6,7 +6,9 @@ class Webhooks::LineEventsJob < ApplicationJob
     return unless valid_event_payload?
     return unless valid_post_body?(post_body, signature)
 
-    Line::IncomingMessageService.new(inbox: @channel.inbox, params: @params['line'].with_indifferent_access).perform
+    Accountable.with_account(@channel.account_id) do
+      Line::IncomingMessageService.new(inbox: @channel.inbox, params: @params['line'].with_indifferent_access).perform
+    end
   end
 
   private

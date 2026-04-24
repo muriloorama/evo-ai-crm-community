@@ -1,10 +1,7 @@
 class Api::V2::ReportsController < Api::V1::BaseController
   require_permissions({
     index: 'reports.read',
-    show: 'reports.read',
-    create: 'reports.create',
-    update: 'reports.update',
-    destroy: 'reports.delete'
+    show: 'reports.read'
   })
   include Api::V2::ReportsHelper
   include Api::V2::HeatmapHelper
@@ -62,6 +59,17 @@ class Api::V2::ReportsController < Api::V1::BaseController
   def bot_metrics
     bot_metrics = V2::Reports::BotMetricsBuilder.new(nil, params).metrics
     render json: bot_metrics
+  end
+
+  def tracking_summary
+    result = Reports::TrackingSummaryService.new(
+      account_id: Current.account_id,
+      start_date: params[:start_date],
+      end_date: params[:end_date],
+      pipeline_id: params[:pipeline_id],
+      source_type: params[:source_type]
+    ).call
+    render json: result
   end
 
   private

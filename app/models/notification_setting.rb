@@ -7,11 +7,17 @@
 #  push_flags  :integer          default(0), not null
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
+#  account_id  :uuid             not null
 #  user_id     :uuid
 #
 # Indexes
 #
-#  by_user  (user_id) UNIQUE
+#  by_user                                    (user_id) UNIQUE
+#  index_notification_settings_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class NotificationSetting < ApplicationRecord
   # used for single column multi flags

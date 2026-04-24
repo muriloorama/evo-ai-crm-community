@@ -32,7 +32,13 @@ module ContactSerializer
     # Add computed fields
     result['additional_attributes'] = contact.additional_attributes || {}
     result['custom_attributes'] = contact.custom_attributes || {}
-    
+    # Avatar URL is a derived attribute (ActiveStorage), not a DB column, so
+    # `as_json(only:)` wouldn't pick it up. Expose it under both keys to match
+    # the conventions already in use across the frontend (pipeline cards use
+    # `avatar_url`, chat widgets use `thumbnail`).
+    result['avatar_url'] = contact.avatar_url
+    result['thumbnail']  = contact.avatar_url
+
     # Timestamps as integers (faster than ISO8601 strings)
     result['created_at'] = contact.created_at.to_i
     result['last_activity_at'] = contact.last_activity_at&.to_i

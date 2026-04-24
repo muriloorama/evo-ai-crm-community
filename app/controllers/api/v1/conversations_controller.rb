@@ -18,6 +18,7 @@ class Api::V1::ConversationsController < Api::V1::BaseController
     unpin: 'conversations.update',
     archive: 'conversations.update',
     unarchive: 'conversations.update',
+    toggle_group_lock: 'conversations.update',
     transcript: 'conversations.export',
     available_for_pipeline: 'conversations.read'
   })
@@ -40,6 +41,7 @@ class Api::V1::ConversationsController < Api::V1::BaseController
         include_labels: true,
         unread_counts: unread_counts_map(conversation_ids),
         last_non_activity_messages: last_non_activity_messages_map(conversation_ids),
+        tracking_sources: tracking_sources_map(@conversations),
         labels_by_title: labels_by_title
       ),
       meta: conversations_pagination_meta,
@@ -70,6 +72,7 @@ class Api::V1::ConversationsController < Api::V1::BaseController
         include_labels: true,
         unread_counts: unread_counts_map(conversation_ids),
         last_non_activity_messages: last_non_activity_messages_map(conversation_ids),
+        tracking_sources: tracking_sources_map(@conversations),
         labels_by_title: labels_by_title
       ),
       meta: conversations_pagination_meta,
@@ -165,6 +168,7 @@ class Api::V1::ConversationsController < Api::V1::BaseController
         include_labels: true,
         unread_counts: unread_counts_map(conversation_ids),
         last_non_activity_messages: last_non_activity_messages_map(conversation_ids),
+        tracking_sources: tracking_sources_map(@conversations),
         labels_by_title: labels_by_title
       ),
       meta: conversations_pagination_meta,
@@ -323,6 +327,23 @@ class Api::V1::ConversationsController < Api::V1::BaseController
     update_custom_attribute('archived', false, 'Conversation unarchived successfully')
   end
 
+  def toggle_group_lock
+    contact_inbox = @conversation.contact_inbox
+    unless contact_inbox&.source_id.to_s.start_with?('GR.')
+      return render json: { error: 'Only group conversations can be locked' }, status: :unprocessable_entity
+    end
+
+    contact = @conversation.contact
+    attrs   = contact.additional_attributes || {}
+    locked  = !attrs['group_locked']
+    contact.update!(additional_attributes: attrs.merge('group_locked' => locked))
+
+    success_response(
+      data: { group_locked: locked },
+      message: locked ? 'Group locked successfully' : 'Group unlocked successfully'
+    )
+  end
+
   private
 
   def update_custom_attribute(attribute_key, value, success_message)
@@ -406,6 +427,18 @@ class Api::V1::ConversationsController < Api::V1::BaseController
     rows.each_with_object({}) do |row, memo|
       message = messages_by_id[row['message_id']]
       memo[row['conversation_id']] = message if message
+    end
+  end
+
+  # Preloads tracking sources for all conversations in the sidebar so the
+  # Instagram/Meta icon next to each conversation doesn't trigger N queries.
+  def tracking_sources_map(conversations)
+    contact_ids = conversations.map(&:contact_id).compact.uniq
+    return {} if contact_ids.empty?
+
+    TrackingSource.where(account_id: Current.account_id, contact_id: contact_ids)
+                  .each_with_object({}) do |ts, memo|
+      memo[ts.contact_id] = { source_type: ts.source_type, source_label: ts.source_label }
     end
   end
 

@@ -5,6 +5,7 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
     Rails.logger.info "WhatsApp webhook processing started: #{params.inspect}"
 
     channel = find_channel(params)
+    clear_reauthorization_on_reconnect(channel, params)
     if channel_is_inactive?(channel)
       Rails.logger.warn("Inactive WhatsApp channel: #{channel&.phone_number || "unknown - #{params[:phone_number]}"}")
       return
@@ -12,11 +13,16 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
 
     Rails.logger.info "Found WhatsApp channel: #{channel.phone_number} (provider: #{channel.provider})"
 
-    # Handle different webhook event types
-    if sync_event?(params)
-      handle_sync_events(channel, params)
-    else
-      handle_message_events(channel, params)
+    # Multi-account scoping: webhook context is anonymous, so Current.account_id
+    # is nil by default. Without setting it, every Contact/Conversation/Message
+    # creation would either bypass the default_scope (fail-open) or violate the
+    # NOT NULL account_id constraint added in 20260417150000.
+    Accountable.with_account(channel.account_id) do
+      if sync_event?(params)
+        handle_sync_events(channel, params)
+      else
+        handle_message_events(channel, params)
+      end
     end
   end
 
@@ -314,6 +320,8 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
       Whatsapp::IncomingMessageNotificameService.new(inbox: channel.inbox, params: params).perform
     when 'zapi'
       Whatsapp::IncomingMessageZapiService.new(inbox: channel.inbox, params: params).perform
+    when 'uazapi'
+      Whatsapp::IncomingMessageUazapiService.new(inbox: channel.inbox, params: params).perform
     else
       Whatsapp::IncomingMessageService.new(inbox: channel.inbox, params: params).perform
     end
@@ -372,6 +380,16 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
       channel = find_channel_by_evolution_instance(params[:instance], params[:server_url])
       if channel
         Rails.logger.info "Channel search via Evolution instance #{params[:instance]}: found #{channel.phone_number}"
+        return channel
+      end
+    end
+
+    # UAZAPI channels are resolved in the controller via webhook_token (URL path),
+    # and the channel.phone_number is already injected in params — no separate lookup needed.
+    if params[:uazapi] && params[:phone_number].present?
+      channel = find_channel_by_phone_number(params[:phone_number])
+      if channel
+        Rails.logger.info "Channel search via Uazapi phone_number #{params[:phone_number]}: found #{channel.phone_number}"
         return channel
       end
     end
@@ -486,6 +504,27 @@ class Webhooks::WhatsappEventsJob < ApplicationJob
     return true if channel.reauthorization_required?
 
     false
+  end
+
+  # UAZAPI sets the reauthorization flag on disconnect events but never clears it
+  # on reconnect. Without this, the job short-circuits for every subsequent
+  # message until the flag is manually cleared. We detect a reconnect webhook
+  # and drop the flag so message processing resumes automatically.
+  def clear_reauthorization_on_reconnect(channel, params)
+    return if channel.blank?
+    return unless params[:uazapi] || params['uazapi']
+    return unless (params[:EventType] || params['EventType']).to_s == 'connection'
+
+    instance = params[:instance] || params['instance'] || {}
+    status   = (instance[:status] || instance['status']).to_s.downcase
+    return unless %w[connected open].include?(status)
+
+    return unless channel.reauthorization_required?
+
+    channel.reauthorized!
+    Rails.logger.info "UAZAPI reconnect detected — cleared reauthorization flag for #{channel.phone_number}"
+  rescue StandardError => e
+    Rails.logger.warn "Failed to clear reauthorization flag on reconnect: #{e.class} - #{e.message}"
   end
 
   def find_channel_from_whatsapp_business_payload(params)

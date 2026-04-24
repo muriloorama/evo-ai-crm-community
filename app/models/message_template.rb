@@ -20,16 +20,22 @@
 #  variables     :jsonb
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
+#  account_id    :uuid             not null
 #  channel_id    :uuid             not null
 #
 # Indexes
 #
-#  idx_templates_active_by_channel     (channel_type,channel_id,active)
-#  idx_templates_by_category           (category)
-#  idx_templates_by_name               (name)
-#  idx_templates_by_type               (template_type)
-#  idx_templates_lookup                (name,channel_type,channel_id)
-#  index_message_templates_on_channel  (channel_type,channel_id)
+#  idx_templates_active_by_channel        (channel_type,channel_id,active)
+#  idx_templates_by_category              (category)
+#  idx_templates_by_name                  (name)
+#  idx_templates_by_type                  (template_type)
+#  idx_templates_lookup                   (name,channel_type,channel_id)
+#  index_message_templates_on_account_id  (account_id)
+#  index_message_templates_on_channel     (channel_type,channel_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class MessageTemplate < ApplicationRecord

@@ -18,6 +18,15 @@
 #  text_segmentation_min_size :integer          default(50)
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
+#  account_id                 :uuid             not null
+#
+# Indexes
+#
+#  index_agent_bots_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class AgentBot < ApplicationRecord
   include AccessTokenable

@@ -24,6 +24,7 @@ class Api::V1::GlobalConfigController < Api::BaseController
       # Frontend only needs to know IF config exists, not the actual values
       hasEvolutionConfig: evolution_configured?,
       hasEvolutionGoConfig: evolution_go_configured?,
+      hasUazapiConfig: uazapi_configured?,
       openaiConfigured: openai_configured?,
       enableAccountSignup: enable_account_signup?,
       recaptchaSiteKey: GlobalConfigService.load('RECAPTCHA_SITE_KEY', nil),
@@ -55,6 +56,13 @@ class Api::V1::GlobalConfigController < Api::BaseController
   def evolution_go_configured?
     api_url = GlobalConfigService.load('EVOLUTION_GO_API_URL', '').to_s.strip
     admin_token = GlobalConfigService.load('EVOLUTION_GO_ADMIN_SECRET', '').to_s.strip
+
+    api_url.present? && admin_token.present?
+  end
+
+  def uazapi_configured?
+    api_url = GlobalConfigService.load('UAZAPI_API_URL', '').to_s.strip
+    admin_token = GlobalConfigService.load('UAZAPI_ADMIN_SECRET', '').to_s.strip
 
     api_url.present? && admin_token.present?
   end

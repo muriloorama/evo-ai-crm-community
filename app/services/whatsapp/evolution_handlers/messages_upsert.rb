@@ -93,6 +93,15 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
   end
 
   def build_message_attributes
+    # Outgoing messages that arrive via webhook (with no matching CRM-dispatched
+    # message) are echoes of the operator sending from the WhatsApp client on
+    # their phone. We mark them with `external_origin: true` so the UI can
+    # show a "Celular" badge instead of attributing the message to the random
+    # User.first / first SuperAdmin we used as a placeholder sender (a NOT NULL
+    # constraint forces us to set one, but it doesn't reflect reality).
+    attrs = message_content_attributes
+    attrs[:external_origin] = true unless incoming?
+
     @message = @conversation.messages.build(
       content: message_content || '',
       inbox_id: @inbox.id,
@@ -100,7 +109,7 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
       sender: incoming? ? @contact : User.where(type: 'SuperAdmin').first || User.first,
       sender_type: incoming? ? 'Contact' : 'User',
       message_type: incoming? ? :incoming : :outgoing,
-      content_attributes: message_content_attributes
+      content_attributes: attrs
     )
   end
 
@@ -123,15 +132,16 @@ module Whatsapp::EvolutionHandlers::MessagesUpsert
   def update_conversation_status_if_needed
     return unless !incoming? && @conversation&.status == 'pending'
 
-    # CRITICAL: If inbox has active bot, keep conversation pending
-    # Bot conversations should only change to open when a human agent manually responds
-    # or manually changes the status
-    if @conversation.inbox.active_bot?
-      Rails.logger.info "Evolution API: Keeping conversation #{@conversation.id} pending (active bot present)"
-      return
-    end
-
+    # Any outgoing webhook message that reaches here is, by definition,
+    # NOT a CRM-dispatched message (those are deduped earlier by
+    # message_processable?). So this is an echo of the operator typing from
+    # their own WhatsApp client — a human takeover. Flip to `open` so the
+    # AgentBotInbox (which only auto-replies on `pending`) stops responding.
     @conversation.update!(status: :open)
-    Rails.logger.info "Evolution API: Updated conversation #{@conversation.id} status from pending to open for outgoing message"
+    if @conversation.inbox.active_bot?
+      Rails.logger.info "Evolution API: Human takeover — phone echo moved conversation #{@conversation.id} to open (bot paused)"
+    else
+      Rails.logger.info "Evolution API: Updated conversation #{@conversation.id} status from pending to open for outgoing message"
+    end
   end
 end

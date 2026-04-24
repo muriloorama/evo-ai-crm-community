@@ -10,11 +10,17 @@
 #  webhook_url           :string
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
+#  account_id            :uuid             not null
 #
 # Indexes
 #
+#  index_channel_api_on_account_id  (account_id)
 #  index_channel_api_on_hmac_token  (hmac_token) UNIQUE
 #  index_channel_api_on_identifier  (identifier) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::Api < ApplicationRecord

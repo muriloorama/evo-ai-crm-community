@@ -39,6 +39,9 @@ class Attachment < ApplicationRecord
   enum file_type: { :image => 0, :audio => 1, :video => 2, :file => 3, :location => 4, :fallback => 5, :share => 6, :story_mention => 7,
                     :contact => 8, :ig_reel => 9 }
 
+  after_create_commit :enqueue_audio_transcription, if: :transcribable_audio?
+  after_create_commit :enqueue_image_description, if: :describable_image?
+
   def message
     attachable if attachable_type == 'Message'
   end
@@ -77,6 +80,29 @@ class Attachment < ApplicationRecord
   end
 
   private
+
+  # Transcribe incoming and outgoing audio so the conversation history is
+  # fully searchable. Skip private notes — those are operator-to-operator
+  # comms (briefings, internal coordination) that shouldn't end up in the
+  # context the AI agent reads back from the conversation.
+  def transcribable_audio?
+    audio? && message.present? && !message.private?
+  end
+
+  def enqueue_audio_transcription
+    Messages::AudioTranscriptionJob.perform_later(id)
+  end
+
+  # Describes incoming image attachments via OpenAI Vision so the bot agent
+  # (which does not run vision itself) gets a textual summary in the
+  # conversation context. Only incoming, private notes skipped.
+  def describable_image?
+    image? && message.present? && message.incoming? && !message.private?
+  end
+
+  def enqueue_image_description
+    Messages::ImageDescriptionJob.perform_later(id)
+  end
 
   def metadata_for_file_type
     case file_type.to_sym

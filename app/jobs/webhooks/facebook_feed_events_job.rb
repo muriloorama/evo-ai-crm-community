@@ -10,6 +10,12 @@ class Webhooks::FacebookFeedEventsJob < MutexApplicationJob
       return
     end
 
+    channel = page_id.present? ? Channel::FacebookPage.find_by(page_id: page_id) : nil
+    if channel.blank?
+      Rails.logger.warn("FacebookFeedEventsJob: No channel found for page_id=#{page_id}")
+      return
+    end
+
     # Use comment_id as mutex key for comment events to prevent duplicate processing
     # For post events, use post_id
     mutex_key = if parser.comment_event?
@@ -19,7 +25,9 @@ class Webhooks::FacebookFeedEventsJob < MutexApplicationJob
                 end
 
     with_lock(mutex_key) do
-      process_feed_change(parser, page_id)
+      Accountable.with_account(channel.account_id) do
+        process_feed_change(parser, page_id)
+      end
     end
   end
 

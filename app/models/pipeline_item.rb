@@ -8,6 +8,7 @@
 #  entered_at        :datetime
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
+#  account_id        :uuid             not null
 #  assigned_by_id    :uuid
 #  contact_id        :uuid
 #  conversation_id   :uuid
@@ -16,6 +17,7 @@
 #
 # Indexes
 #
+#  index_pipeline_items_on_account_id                       (account_id)
 #  index_pipeline_items_on_contact_id                       (contact_id)
 #  index_pipeline_items_on_contact_id_and_pipeline_id       (contact_id,pipeline_id) UNIQUE WHERE (conversation_id IS NULL)
 #  index_pipeline_items_on_conversation_id_and_pipeline_id  (conversation_id,pipeline_id) UNIQUE WHERE (conversation_id IS NOT NULL)
@@ -25,6 +27,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #  fk_rails_...  (contact_id => contacts.id)
 #  fk_rails_...  (conversation_id => conversations.id)
 #  fk_rails_...  (pipeline_id => pipelines.id)

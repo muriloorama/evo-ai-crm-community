@@ -1,4 +1,6 @@
 class AgentBots::ResponseProcessor
+  ATTACHMENT_TAG = /\[\[ENVIAR_BROCHURA\]\]/.freeze
+
   def initialize(agent_bot, payload)
     @agent_bot = agent_bot
     @payload = payload
@@ -49,27 +51,65 @@ class AgentBots::ResponseProcessor
     conversation = AgentBots::ConversationFinder.new(@agent_bot, @payload).find_conversation
     return unless conversation
 
-    # Check if text segmentation is enabled for this agent bot
-    if @agent_bot.text_segmentation_enabled && ['evo_ai_provider', 'n8n_provider'].include?(@agent_bot.bot_provider)
-      process_segmented_response(text_content, conversation)
-    else
-      # Process as a single message with signature
-      final_content = build_message_with_signature(text_content)
-      Rails.logger.info "[AgentBot HTTP] Bot Response Message: #{final_content}"
-      
-      # Try to create message normally first
-      message_creator = AgentBots::MessageCreator.new(@agent_bot)
-      message = message_creator.create_bot_reply(final_content, conversation)
-      
-      # If message creation failed (conversation not eligible, e.g., after transfer),
-      # try to force create it anyway (for final responses after transfer)
-      unless message
-        Rails.logger.info "[AgentBot HTTP] Message creation failed (conversation not eligible), attempting force create..."
-        message = message_creator.create_bot_reply(final_content, conversation, force: true)
+    # The HTTP request that triggered this processor runs outside any user
+    # request context (SendiKiq job), so `Current.account_id` is nil and the
+    # Accountable before_validation callback can't auto-fill the message's
+    # account_id. Wrap bot-reply creation with the conversation's account_id
+    # so the NOT NULL constraint on messages.account_id is satisfied.
+    Accountable.with_account(conversation.account_id) do
+      attachment_url = @agent_bot.bot_config&.dig('pre_transfer_attachment_url')
+      should_send_attachment = attachment_url.present? && text_content.match?(ATTACHMENT_TAG)
+      text_content = text_content.gsub(ATTACHMENT_TAG, '').strip if should_send_attachment
+
+      if @agent_bot.text_segmentation_enabled && ['evo_ai_provider', 'n8n_provider'].include?(@agent_bot.bot_provider)
+        process_segmented_response(text_content, conversation)
+      else
+        final_content = build_message_with_signature(text_content)
+        Rails.logger.info "[AgentBot HTTP] Bot Response Message: #{final_content}"
+
+        message_creator = AgentBots::MessageCreator.new(@agent_bot)
+        message = message_creator.create_bot_reply(final_content, conversation)
+
+        unless message
+          Rails.logger.info "[AgentBot HTTP] Message creation failed (conversation not eligible), attempting force create..."
+          message = message_creator.create_bot_reply(final_content, conversation, force: true)
+        end
+
+        message
       end
-      
-      message
+
+      send_pre_transfer_attachment(conversation, attachment_url) if should_send_attachment
     end
+  end
+
+  def send_pre_transfer_attachment(conversation, url)
+    Rails.logger.info "[AgentBot HTTP] Sending pre-transfer attachment from #{url}"
+
+    user = conversation.assignee || conversation.account.users.first
+    return unless user
+
+    filename = url.split('?').first.split('/').last.presence || 'documento.pdf'
+    io = AgentBots::SafeAttachmentFetcher.call(url)
+
+    message = nil
+    ActiveRecord::Base.transaction do
+      message = conversation.messages.create!(
+        account_id: conversation.account_id,
+        inbox_id: conversation.inbox_id,
+        message_type: :outgoing,
+        content: nil,
+        sender: @agent_bot,
+        private: false
+      )
+      message.attachments.create!(
+        file_type: :file,
+        file: { io: io, filename: filename, content_type: 'application/pdf' }
+      )
+    end
+
+    Rails.logger.info "[AgentBot HTTP] Pre-transfer attachment queued (message_id=#{message.id})"
+  rescue StandardError => e
+    Rails.logger.error "[AgentBot HTTP] Pre-transfer attachment failed: #{e.class} #{e.message}"
   end
 
   def extract_artifacts(parsed_response)

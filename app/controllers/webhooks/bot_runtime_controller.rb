@@ -45,11 +45,10 @@ class Webhooks::BotRuntimeController < ActionController::API
   private
 
   def send_attachment(conversation, agent_bot, attachment)
-    require 'open-uri'
     Rails.logger.info "[BotRuntime::Postback] Sending tag attachment tag=#{attachment.tag} url=#{attachment.url}"
 
     Accountable.with_account(conversation.account_id) do
-      io = URI.open(attachment.url)
+      io = AgentBots::SafeAttachmentFetcher.call(attachment.url)
 
       ActiveRecord::Base.transaction do
         message = conversation.messages.create!(

@@ -21,7 +21,8 @@ class AsyncDispatcher < BaseDispatcher
       WebhookListener.instance,
       ChannelListener.instance,
       WhatsappSyncListener.instance,
-      ZapiSyncListener.instance
+      ZapiSyncListener.instance,
+      FollowUpListener.instance
     ]
   end
 end

@@ -30,6 +30,7 @@ module ConversationSerializer
     include_inbox: true,
     unread_counts: nil,
     last_non_activity_messages: nil,
+    tracking_sources: nil,
     labels_by_title: nil
   )
     result = conversation.as_json(
@@ -59,14 +60,46 @@ module ConversationSerializer
 
     # Include contact
     if include_contact && conversation.contact.present?
+      contact_labels = conversation.contact.labels.map do |tag|
+        label_record = Label.find_by(title: tag.name)
+        { name: tag.name, color: label_record&.color || '#1f93ff' }
+      end
+
       result['contact'] = {
         id: conversation.contact.id,
         name: conversation.contact.name,
         email: conversation.contact.email,
         phone_number: conversation.contact.phone_number,
         thumbnail: conversation.contact.avatar_url,
-        custom_attributes: conversation.contact.custom_attributes || {}
+        custom_attributes: conversation.contact.custom_attributes || {},
+        additional_attributes: conversation.contact.additional_attributes || {},
+        labels: contact_labels
       }
+    end
+
+    # Surface contact_inbox.source_id so the frontend can detect uazapi groups
+    # (source_id starts with "GR.") and toggle the per-group lock from the UI.
+    result['contact_inbox_source_id'] = conversation.contact_inbox&.source_id
+
+    # Surface first-touch tracking source so the conversation UI can render
+    # a small Instagram/Facebook icon next to the first message when the lead
+    # came from a CTWA ad. Only emits the minimum fields the UI needs.
+    # When `tracking_sources` map is provided (list endpoints), avoid N+1 by
+    # using the preloaded hash; otherwise fall back to a single lookup.
+    if tracking_sources
+      ts = tracking_sources[conversation.contact_id]
+      result['tracking_source'] = ts if ts
+    else
+      tracking_source = TrackingSource.find_by(
+        account_id: conversation.account_id,
+        contact_id: conversation.contact_id
+      )
+      if tracking_source
+        result['tracking_source'] = {
+          source_type: tracking_source.source_type,
+          source_label: tracking_source.source_label
+        }
+      end
     end
 
     # Include inbox
@@ -188,12 +221,16 @@ module ConversationSerializer
     end
 
     if last_non_activity_message
+      first_attachment = last_non_activity_message.attachments.first
       result['last_non_activity_message'] = {
         id: last_non_activity_message.id,
         content: last_non_activity_message.content,
         message_type: last_non_activity_message.message_type,
         created_at: last_non_activity_message.created_at&.iso8601,
         processed_message_content: last_non_activity_message.processed_message_content,
+        # Surfaced so the conversation list can render a Whatsapp-style icon
+        # placeholder (🎤 Áudio, 📷 Imagem, etc.) when the message has no text.
+        attachment_type: first_attachment&.file_type,
         sender: last_non_activity_message.sender ? {
           id: last_non_activity_message.sender.id,
           name: last_non_activity_message.sender.name,
@@ -214,6 +251,21 @@ module ConversationSerializer
   #
   def serialize_collection(conversations, **options)
     return [] unless conversations
+
+    # Auto-preload tracking sources when the caller didn't provide them,
+    # so serializers called from unrelated endpoints (pipelines, search
+    # helpers) don't N+1 either.
+    if options[:tracking_sources].nil?
+      account_ids = conversations.map(&:account_id).compact.uniq
+      contact_ids = conversations.map(&:contact_id).compact.uniq
+      if account_ids.any? && contact_ids.any?
+        options[:tracking_sources] = TrackingSource
+                                      .where(account_id: account_ids, contact_id: contact_ids)
+                                      .each_with_object({}) { |ts, memo|
+          memo[ts.contact_id] = { source_type: ts.source_type, source_label: ts.source_label }
+        }
+      end
+    end
 
     conversations.map { |conversation| serialize(conversation, **options) }
   end

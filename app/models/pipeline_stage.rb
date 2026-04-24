@@ -11,13 +11,19 @@
 #  stage_type       :integer          default(0)
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  account_id       :uuid             not null
 #  pipeline_id      :uuid             not null
 #
 # Indexes
 #
+#  index_pipeline_stages_on_account_id                (account_id)
 #  index_pipeline_stages_on_custom_fields             (custom_fields) USING gin
 #  index_pipeline_stages_on_pipeline_id               (pipeline_id)
 #  index_pipeline_stages_on_pipeline_id_and_position  (pipeline_id,position) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class PipelineStage < ApplicationRecord
   belongs_to :pipeline

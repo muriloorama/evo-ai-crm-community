@@ -19,6 +19,7 @@
 #  status               :string(20)       default("scheduled"), not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
+#  account_id           :uuid             not null
 #  contact_id           :uuid
 #  conversation_id      :uuid
 #  deal_id              :bigint
@@ -30,6 +31,7 @@
 #  idx_scheduled_actions_contact_status        (contact_id,status)
 #  idx_scheduled_actions_deal_status           (deal_id,status)
 #  idx_scheduled_actions_status_time           (status,scheduled_for)
+#  index_scheduled_actions_on_account_id       (account_id)
 #  index_scheduled_actions_on_action_type      (action_type)
 #  index_scheduled_actions_on_contact_id       (contact_id)
 #  index_scheduled_actions_on_conversation_id  (conversation_id)
@@ -40,6 +42,7 @@
 #
 # Foreign Keys
 #
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #  fk_rails_...  (contact_id => contacts.id) ON DELETE => cascade
 #  fk_rails_...  (conversation_id => conversations.id) ON DELETE => cascade
 #  fk_rails_...  (created_by => users.id) ON DELETE => cascade

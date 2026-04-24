@@ -9,9 +9,18 @@
 #  status       :integer          default("enabled")
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
+#  account_id   :uuid             not null
 #  app_id       :string
 #  inbox_id     :uuid
 #  reference_id :string
+#
+# Indexes
+#
+#  index_integrations_hooks_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Integrations::Hook < ApplicationRecord
   include Reauthorizable

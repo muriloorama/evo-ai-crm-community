@@ -14,10 +14,16 @@
 #  regex_pattern          :string
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
+#  account_id             :uuid             not null
 #
 # Indexes
 #
-#  attribute_key_model_index  (attribute_key,attribute_model) UNIQUE
+#  attribute_key_model_index                         (attribute_key,attribute_model) UNIQUE
+#  index_custom_attribute_definitions_on_account_id  (account_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class CustomAttributeDefinition < ApplicationRecord
   include Events::Types

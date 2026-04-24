@@ -5,13 +5,19 @@
 #  id         :uuid             not null, primary key
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  account_id :uuid             not null
 #  inbox_id   :uuid             not null
 #  user_id    :uuid             not null
 #
 # Indexes
 #
+#  index_inbox_members_on_account_id            (account_id)
 #  index_inbox_members_on_inbox_id              (inbox_id)
 #  index_inbox_members_on_inbox_id_and_user_id  (inbox_id,user_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class InboxMember < ApplicationRecord
   validates :inbox_id, presence: true

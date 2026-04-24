@@ -55,11 +55,18 @@ module EvoAuthConcern
     @current_user = user
     Current.authentication_method = token_type
 
-    # Store role key from evo-auth for permission checks
-    role_key = user_data.dig('user', 'role', 'key') || user_data.dig('role', 'key')
-    Current.evo_role_key = role_key
+    Current.super_admin = !!user_data['super_admin']
+    Current.accounts    = user_data['accounts'] || []
 
-    Current.account ||= RuntimeConfig.account
+    active_account = resolve_active_account(user_data)
+    Current.account        = active_account
+    Current.account_id     = active_account&.dig('id')
+    Current.account_number = active_account&.dig('number') || user_data['active_account_number']
+
+    # Store the role key the user holds *in the active account* (or the global
+    # role key if super_admin with no active account). Falls back to the top-level
+    # role field for legacy single-account responses.
+    Current.evo_role_key = resolve_role_key(user_data, active_account)
 
     # Store tokens for downstream services
     if token_type == 'bearer'
@@ -67,6 +74,32 @@ module EvoAuthConcern
     elsif token_type == 'api_access_token'
       Current.api_access_token = token
     end
+  end
+
+  def resolve_active_account(user_data)
+    accounts     = user_data['accounts'] || []
+    active_id    = user_data['active_account_id']
+    active_num   = user_data['active_account_number']
+    super_admin  = !!user_data['super_admin']
+
+    # Highest priority: trust the JWT's active_account_id when it's present.
+    # For super_admins, the active workspace may not appear in their
+    # memberships list — they are platform operators that can enter any
+    # workspace from the switcher. Falling back to `accounts.first` here
+    # silently undid the switch and made all data appear under Oramatech.
+    if active_id.present?
+      from_membership = accounts.find { |a| a['id'] == active_id }
+      return from_membership if from_membership
+      return { 'id' => active_id, 'number' => active_num } if super_admin
+    end
+
+    accounts.first
+  end
+
+  def resolve_role_key(user_data, active_account)
+    active_account&.dig('role', 'key') ||
+      user_data.dig('user', 'role', 'key') ||
+      user_data.dig('role', 'key')
   end
 
   def find_local_user(user_data)

@@ -7,11 +7,17 @@
 #  expires_at   :datetime         not null
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
+#  account_id   :uuid             not null
 #  instagram_id :string           not null
 #
 # Indexes
 #
+#  index_channel_instagram_on_account_id    (account_id)
 #  index_channel_instagram_on_instagram_id  (instagram_id) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Channel::Instagram < ApplicationRecord
   include Channelable

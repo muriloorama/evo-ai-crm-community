@@ -11,12 +11,18 @@
 #  phone_number          :string
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
+#  account_id            :uuid             not null
 #
 # Indexes
 #
+#  index_channel_twilio_sms_on_account_id                    (account_id)
 #  index_channel_twilio_sms_on_account_sid_and_phone_number  (account_sid,phone_number) UNIQUE
 #  index_channel_twilio_sms_on_messaging_service_sid         (messaging_service_sid) UNIQUE
 #  index_channel_twilio_sms_on_phone_number                  (phone_number) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::TwilioSms < ApplicationRecord

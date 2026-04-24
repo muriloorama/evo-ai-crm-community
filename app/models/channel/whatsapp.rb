@@ -9,10 +9,16 @@
 #  provider_connection :jsonb
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
+#  account_id          :uuid             not null
 #
 # Indexes
 #
+#  index_channel_whatsapp_on_account_id    (account_id)
 #  index_channel_whatsapp_on_phone_number  (phone_number) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 
 class Channel::Whatsapp < ApplicationRecord
@@ -24,7 +30,7 @@ class Channel::Whatsapp < ApplicationRecord
   EDITABLE_ATTRS = [:phone_number, :provider, { provider_config: {} }].freeze
 
   # default at the moment is 360dialog lets change later.
-  PROVIDERS = %w[default whatsapp_cloud baileys evolution evolution_go notificame zapi].freeze
+  PROVIDERS = %w[default whatsapp_cloud baileys evolution evolution_go notificame zapi uazapi].freeze
   before_validation :ensure_webhook_verify_token
 
   validates :provider, inclusion: { in: PROVIDERS }
@@ -37,7 +43,7 @@ class Channel::Whatsapp < ApplicationRecord
   after_create :sync_templates
   before_destroy :unsubscribe
 
-  before_destroy :disconnect_channel_provider, if: -> { provider.in?(%w[baileys evolution evolution_go]) }
+  before_destroy :disconnect_channel_provider, if: -> { provider.in?(%w[baileys evolution evolution_go uazapi]) }
 
   # Notificame specific callbacks
   after_create_commit -> { Notificame::SubscribeWebhookJob.perform_later(id) },
@@ -52,6 +58,11 @@ class Channel::Whatsapp < ApplicationRecord
                       if: -> { provider == 'zapi' }
   after_destroy_commit -> { provider_service.unsubscribe_from_webhooks },
                        if: -> { provider == 'zapi' }
+
+  # Uazapi: o webhook é configurado no servidor UAZAPI apontando de volta para o CRM.
+  # Sem isso as mensagens nunca chegam ao inbox.
+  after_create_commit -> { provider_service.subscribe_to_webhooks },
+                      if: -> { provider == 'uazapi' }
 
   def name
     'Whatsapp'
@@ -71,6 +82,8 @@ class Channel::Whatsapp < ApplicationRecord
       Whatsapp::Providers::NotificameService.new(whatsapp_channel: self)
     when 'zapi'
       Whatsapp::Providers::ZapiService.new(whatsapp_channel: self)
+    when 'uazapi'
+      Whatsapp::Providers::UazapiService.new(whatsapp_channel: self)
     else
       Whatsapp::Providers::Whatsapp360DialogService.new(whatsapp_channel: self)
     end
@@ -141,6 +154,7 @@ class Channel::Whatsapp < ApplicationRecord
   delegate :setup_channel_provider, to: :provider_service
   delegate :send_message, to: :provider_service
   delegate :send_template, to: :provider_service
+  delegate :send_reaction, to: :provider_service
   delegate :sync_templates, to: :provider_service
   delegate :media_url, to: :provider_service
   delegate :api_headers, to: :provider_service
@@ -188,7 +202,7 @@ class Channel::Whatsapp < ApplicationRecord
   private
 
   def ensure_webhook_verify_token
-    provider_config['webhook_verify_token'] ||= SecureRandom.hex(16) if provider.in?(%w[whatsapp_cloud baileys notificame])
+    provider_config['webhook_verify_token'] ||= SecureRandom.hex(16) if provider.in?(%w[whatsapp_cloud baileys notificame uazapi])
   end
 
   def validate_provider_config

@@ -103,15 +103,32 @@ class ContactInboxWithContactBuilder
   end
 
   def create_contact
+    additional_attrs = contact_attributes[:additional_attributes] || {}
+    inferred = infer_location_from_phone(contact_attributes[:phone_number])
+
+    # Merge inferred city/state into additional_attributes.location without
+    # overwriting values the caller already passed in.
+    if inferred.any?
+      additional_attrs = additional_attrs.deep_stringify_keys
+      existing_location = additional_attrs['location'].is_a?(Hash) ? additional_attrs['location'] : {}
+      additional_attrs['location'] = existing_location.reverse_merge(
+        'city' => inferred[:city],
+        'state' => inferred[:state],
+        'country_code' => inferred[:country_code]
+      ).compact
+      additional_attrs['city'] ||= inferred[:city] if inferred[:city]
+      additional_attrs['country'] ||= inferred[:country_code] if inferred[:country_code]
+    end
+
     contact = Contact.new(
       name: contact_attributes[:name] || ::Haikunator.haikunate(1000),
       phone_number: contact_attributes[:phone_number],
       email: contact_attributes[:email],
       identifier: contact_attributes[:identifier],
-      additional_attributes: contact_attributes[:additional_attributes],
+      additional_attributes: additional_attrs,
       custom_attributes: contact_attributes[:custom_attributes],
-      location: contact_attributes[:location] || '', # Ensure location is never nil
-      country_code: contact_attributes[:country_code] || '' # Ensure country_code is never nil
+      location: contact_attributes[:location].presence || inferred[:city] || '',
+      country_code: contact_attributes[:country_code].presence || inferred[:country_code] || ''
     )
 
     # Contacts created via inbox/channel flows are usually followed by conversation creation.
@@ -178,5 +195,17 @@ class ContactInboxWithContactBuilder
     return if phone_number.blank?
 
     Contact.find_by(phone_number: phone_number)
+  end
+
+  # Uses PhoneLocationInferrer to turn a raw WhatsApp phone number into
+  # ISO country + (when Brazilian) city/state. Failures fall back to an
+  # empty hash — never blocks contact creation.
+  def infer_location_from_phone(phone_number)
+    return {} if phone_number.blank?
+
+    PhoneLocationInferrer.call(phone_number) || {}
+  rescue StandardError => e
+    Rails.logger.warn "PhoneLocationInferrer failed for #{phone_number}: #{e.message}"
+    {}
   end
 end

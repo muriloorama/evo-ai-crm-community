@@ -9,11 +9,17 @@
 #  webhook_type  :integer          default("account_type")
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
+#  account_id    :uuid             not null
 #  inbox_id      :uuid
 #
 # Indexes
 #
-#  index_webhooks_on_url  (url) UNIQUE
+#  index_webhooks_on_account_id  (account_id)
+#  index_webhooks_on_url         (url) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Webhook < ApplicationRecord
   belongs_to :inbox, optional: true

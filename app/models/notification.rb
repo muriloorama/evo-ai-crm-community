@@ -12,15 +12,21 @@
 #  snoozed_until        :datetime
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
+#  account_id           :uuid             not null
 #  primary_actor_id     :uuid             not null
 #  secondary_actor_id   :uuid
 #  user_id              :uuid             not null
 #
 # Indexes
 #
+#  index_notifications_on_account_id               (account_id)
 #  index_notifications_on_user_id                  (user_id)
 #  uniq_primary_actor_per_account_notifications    (primary_actor_type,primary_actor_id)
 #  uniq_secondary_actor_per_account_notifications  (secondary_actor_type,secondary_actor_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Notification < ApplicationRecord
   include MessageFormatHelper

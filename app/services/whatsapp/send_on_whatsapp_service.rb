@@ -8,6 +8,12 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
   end
 
   def perform_reply
+    # Outbound reactions go through a separate Meta endpoint (type=reaction).
+    # Routing them through send_text_message would deliver the emoji as a
+    # plain text reply instead of a reaction sticker. is_reaction is a
+    # content_attributes accessor, not a column — there's no `is_reaction?`.
+    return send_reaction_message if message.is_reaction
+
     should_send_template_message = template_params.present? || !message.conversation.can_reply?
     if should_send_template_message
       send_template_message
@@ -16,6 +22,17 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
     else
       send_session_message
     end
+  end
+
+  def send_reaction_message
+    return unless channel.respond_to?(:send_reaction)
+
+    target_external_id = message.content_attributes['in_reply_to_external_id'].presence
+    return if target_external_id.blank?
+
+    target_number = determine_target_number_for_sending
+    message_id = channel.send_reaction(target_number, target_external_id, message.content.to_s)
+    message.update!(source_id: message_id) if message_id.present?
   end
 
   def send_template_message
@@ -28,11 +45,17 @@ class Whatsapp::SendOnWhatsappService < Base::SendOnChannelService
 
     Rails.logger.info "WhatsApp Template: Using number #{target_number} for contact #{message.conversation.contact.id}"
 
+    # Look up the stored template so the provider can build header/buttons
+    # components from its structure (Meta needs those on every send, not
+    # just on template creation).
+    template_record = channel.message_templates.active.find_by(name: name, language: lang_code)
+
     message_id = channel.send_template(target_number, {
                                          name: name,
                                          namespace: namespace,
                                          lang_code: lang_code,
-                                         parameters: processed_parameters
+                                         parameters: processed_parameters,
+                                         components: template_record&.components
                                        })
     message.update!(source_id: message_id) if message_id.present?
   end

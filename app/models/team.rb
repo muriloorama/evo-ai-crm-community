@@ -8,10 +8,16 @@
 #  name              :string           not null
 #  created_at        :datetime         not null
 #  updated_at        :datetime         not null
+#  account_id        :uuid             not null
 #
 # Indexes
 #
-#  index_teams_on_name  (name) UNIQUE
+#  index_teams_on_account_id  (account_id)
+#  index_teams_on_name        (name) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Team < ApplicationRecord
   has_many :team_members, dependent: :destroy_async

@@ -21,10 +21,12 @@
 #  website               :string
 #  created_at            :datetime         not null
 #  updated_at            :datetime         not null
+#  account_id            :uuid             not null
 #  tax_id                :string(14)
 #
 # Indexes
 #
+#  index_contacts_on_account_id                          (account_id)
 #  index_contacts_on_blocked                             (blocked)
 #  index_contacts_on_last_activity_at                    (last_activity_at)
 #  index_contacts_on_name_email_phone_number_identifier  (name,email,phone_number,identifier) USING gin
@@ -33,6 +35,10 @@
 #  index_contacts_on_type                                (type)
 #  uniq_email_per_account_contact                        (email) UNIQUE
 #  uniq_identifier_per_account_contact                   (identifier) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id) ON DELETE => cascade
 #
 class Contact < ApplicationRecord
   include Avatarable
