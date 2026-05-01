@@ -476,6 +476,13 @@ class Message < ApplicationRecord
   end
 
   def set_conversation_activity
+    # Mensagens de atividade ("Fulano adicionou etiqueta", "mudou status",
+    # "atribuiu agente", etc) NÃO devem bumpar last_activity_at — apenas
+    # mensagens reais (incoming/outgoing/template) reordenam a lista de
+    # conversas. Isso impede que cada mudança de etiqueta/status/atribuição
+    # empurre a conversa pro topo da inbox sem motivo.
+    return if activity?
+
     refresh_conversation_activity!(created_at, use_current_time: true)
   end
 
