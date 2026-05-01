@@ -22,7 +22,8 @@ class AsyncDispatcher < BaseDispatcher
       ChannelListener.instance,
       WhatsappSyncListener.instance,
       ZapiSyncListener.instance,
-      FollowUpListener.instance
+      FollowUpListener.instance,
+      LeadNotificationListener.instance
     ]
   end
 end
