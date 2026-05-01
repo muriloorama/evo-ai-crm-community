@@ -1,0 +1,41 @@
+# Defaults for per-account features and limits.
+#
+# These values describe what a workspace is allowed to do when its
+# `accounts.features` / `accounts.settings` JSONB columns are empty.
+# Existing tenants (Oramatech etc.) ship with `{}` for both columns;
+# the FeatureGate falls back here so they keep behaving exactly as before.
+#
+# `null` for a limit means "unlimited" — the gate does not enforce a cap.
+# `true` for a feature/channel means the workspace may use it.
+#
+# Operators override individual keys via the super-admin UI; only the
+# overridden keys are persisted, the rest continue to read from this file.
+limits:
+  max_inboxes: null            # null = sem limite
+  max_agents: null             # operadores humanos
+  max_contacts: null
+  max_conversations_month: null
+  max_storage_mb: null
+ai:
+  enabled: true
+  max_bots: null
+channels:
+  whatsapp_cloud: true
+  whatsapp_uazapi: true
+  whatsapp_evolution: true
+  instagram: true
+  facebook: true
+  email: true
+  webhook: true
+  api: true
+features:
+  pipelines: true
+  macros: true
+  broadcast: true
+  followup: true
+  scheduled_messages: true
+  csat: true
+  automations: true
+  working_hours: true
+  mass_actions: true
+  reports: true

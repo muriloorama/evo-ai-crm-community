@@ -5,6 +5,10 @@
 # create  POST   /api/v1/conversations/:conversation_id/scheduled_messages
 # destroy DELETE /api/v1/conversations/:conversation_id/scheduled_messages/:id
 class Api::V1::Conversations::ScheduledMessagesController < Api::V1::Conversations::BaseController
+  # FeatureGate — disabling `features.scheduled_messages` blocks new
+  # schedules but keeps already-queued ones visible/cancellable.
+  before_action -> { ensure_feature!('features.scheduled_messages') }, only: %i[create]
+
   def index
     rows = @conversation.scheduled_messages.order(scheduled_at: :asc)
     success_response(

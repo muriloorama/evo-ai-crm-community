@@ -9,6 +9,10 @@ class Api::V1::MacrosController < Api::V1::BaseController
   })
 
   before_action :fetch_macro, only: [:show, :update, :destroy, :execute]
+  # FeatureGate — workspace must have macros enabled to create/edit them.
+  # Read endpoints stay open so existing macros remain visible even if the
+  # operator just disabled the feature.
+  before_action -> { ensure_feature!('features.macros') }, only: %i[create update execute]
 
   def index
     @macros = Macro.with_visibility(current_user, params)

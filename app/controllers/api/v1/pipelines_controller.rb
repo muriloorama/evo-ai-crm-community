@@ -16,7 +16,10 @@ class Api::V1::PipelinesController < Api::V1::BaseController
 
   before_action :fetch_pipeline, only: [:show, :update, :destroy, :archive, :set_as_default]
   before_action :fetch_pipeline_for_stats, only: [:stats], if: -> { params[:id].present? }
-  before_action :validate_pipeline_limit, only: [:create]
+  # FeatureGate — `validate_pipeline_limit` (in ResourceLimitsHelper) checks
+  # `features.pipelines`; we run it on both create and update so a workspace
+  # whose toggle was just turned off can't continue editing existing rows.
+  before_action :validate_pipeline_limit, only: %i[create update]
   before_action :fetch_contact_for_by_contact, only: [:by_contact]
   before_action :fetch_conversation_for_by_conversation, only: [:by_conversation]
 

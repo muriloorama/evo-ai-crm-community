@@ -118,7 +118,19 @@ module Api::V1::InboxesHelper
     }[permitted_params[:channel][:type]]
   end
 
+  # Hard cap on the number of inboxes the workspace can host. nil = unlimited
+  # (community/no override). Reads from FeatureGate so super-admin can lower
+  # the cap per-account from the platform UI.
   def validate_limit
-    # No account-level limits in community edition
+    return unless Current.account
+    cap = AccountFeatureGate.limit(Current.account, 'limits.max_inboxes')
+    return if cap.nil?
+    return if Inbox.count < cap
+
+    error_response(
+      ApiErrorCodes::VALIDATION_ERROR,
+      "Workspace atingiu o limite de caixas de entrada (#{cap}).",
+      status: :unprocessable_entity
+    )
   end
 end

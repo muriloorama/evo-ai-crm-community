@@ -9,6 +9,10 @@
 # GET  /broadcast_campaigns/:id                    details + progress
 class Api::V1::BroadcastCampaignsController < Api::V1::BaseController
   before_action :fetch_campaign, only: %i[show add_recipients enqueue cancel]
+  # FeatureGate — broadcast campaigns require the `features.broadcast`
+  # toggle. Listing/viewing remains available so the UI can render history
+  # even when the feature was just turned off.
+  before_action -> { ensure_feature!('features.broadcast') }, only: %i[create add_recipients enqueue]
 
   def index
     campaigns = BroadcastCampaign.where(account_id: Current.account_id).order(created_at: :desc)
